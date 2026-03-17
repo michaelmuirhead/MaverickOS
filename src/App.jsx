@@ -2792,55 +2792,67 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
     const isBill = line.type === "bill";
     const isSavings = line.type === "savings";
     const canSwipePaid = isBill && line.instanceKey;
+    const canSwipe = canSwipePaid || canRemove;
 
-    // Swipe state for paid toggle
+    // Swipe state — bidirectional
     const swipeStartX = useRef(0);
     const swipeCurrentX = useRef(0);
     const [swipeOffset, setSwipeOffset] = useState(0);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isSwiping, setIsSwiping] = useState(false);
     const didSwipe = useRef(false);
     const SWIPE_THRESHOLD = 70;
     const SWIPE_MIN = 8;
 
     const handleSwipeStart = useCallback((clientX) => {
-      if (!canSwipePaid) return;
+      if (!canSwipe) return;
       swipeStartX.current = clientX;
       swipeCurrentX.current = clientX;
       didSwipe.current = false;
       setIsSwiping(true);
-    }, [canSwipePaid]);
+    }, [canSwipe]);
 
     const handleSwipeMove = useCallback((clientX) => {
-      if (!isSwiping || !canSwipePaid) return;
+      if (!isSwiping || !canSwipe) return;
       swipeCurrentX.current = clientX;
       const dx = clientX - swipeStartX.current;
       if (Math.abs(dx) > SWIPE_MIN) didSwipe.current = true;
-      // Allow swipe right only (positive dx)
-      if (dx > 0) setSwipeOffset(Math.min(dx, 120));
-    }, [isSwiping, canSwipePaid]);
+      // Right swipe (paid) — only for bills
+      if (dx > 0 && canSwipePaid) setSwipeOffset(Math.min(dx, 120));
+      // Left swipe (delete) — only for custom items
+      if (dx < 0 && canRemove) setSwipeOffset(Math.max(dx, -140));
+    }, [isSwiping, canSwipe, canSwipePaid, canRemove]);
 
     const handleSwipeEnd = useCallback(() => {
       if (!isSwiping) return;
       setIsSwiping(false);
       const dx = swipeCurrentX.current - swipeStartX.current;
+      // Swipe right → toggle paid
       if (dx > SWIPE_THRESHOLD && canSwipePaid) {
         toggleBillPaid(line.instanceKey);
+        setSwipeOffset(0);
+      // Swipe left → reveal delete
+      } else if (dx < -SWIPE_THRESHOLD && canRemove) {
+        setSwipeOffset(-140);
+        setShowDeleteConfirm(true);
+      } else {
+        setSwipeOffset(0);
+        setShowDeleteConfirm(false);
       }
-      setSwipeOffset(0);
-    }, [isSwiping, canSwipePaid, line.instanceKey, toggleBillPaid]);
+    }, [isSwiping, canSwipePaid, canRemove, line.instanceKey, toggleBillPaid]);
 
     const onTouchStart = useCallback((e) => handleSwipeStart(e.touches[0].clientX), [handleSwipeStart]);
     const onTouchMove = useCallback((e) => handleSwipeMove(e.touches[0].clientX), [handleSwipeMove]);
     const onTouchEnd = useCallback(() => handleSwipeEnd(), [handleSwipeEnd]);
 
     const onMouseDown = useCallback((e) => {
-      if (!canSwipePaid) return;
+      if (!canSwipe) return;
       handleSwipeStart(e.clientX);
       const onMM = (ev) => handleSwipeMove(ev.clientX);
       const onMU = () => { document.removeEventListener("mousemove", onMM); document.removeEventListener("mouseup", onMU); handleSwipeEnd(); };
       document.addEventListener("mousemove", onMM);
       document.addEventListener("mouseup", onMU);
-    }, [canSwipePaid, handleSwipeStart, handleSwipeMove, handleSwipeEnd]);
+    }, [canSwipe, handleSwipeStart, handleSwipeMove, handleSwipeEnd]);
 
     const onClickCapture = useCallback((e) => {
       if (didSwipe.current) { e.stopPropagation(); e.preventDefault(); didSwipe.current = false; }
@@ -2862,13 +2874,12 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
       </button>
     );
 
-    // Paid reveal intensity for visual feedback
-    const revealPct = canSwipePaid ? Math.min(swipeOffset / SWIPE_THRESHOLD, 1) : 0;
+    const revealPct = canSwipePaid && swipeOffset > 0 ? Math.min(swipeOffset / SWIPE_THRESHOLD, 1) : 0;
 
     return (
       <div style={{ position: "relative", overflow: "hidden" }}>
         {/* Paid/Unpaid reveal behind (left side, shown when swiping right) */}
-        {canSwipePaid && (
+        {canSwipePaid && swipeOffset > 0 && (
           <div style={{
             position: "absolute", top: 0, left: 0, bottom: 0, width: 120,
             background: line.isPaid ? "var(--amber)" : "var(--green)",
@@ -2881,13 +2892,33 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
             <span style={{ color: "#fff", fontSize: 12, fontWeight: 700 }}>{line.isPaid ? "Unpay" : "Paid"}</span>
           </div>
         )}
+        {/* Delete reveal behind (right side, shown when swiping left) */}
+        {canRemove && (
+          <div style={{
+            position: "absolute", top: 0, right: 0, bottom: 0, width: 140,
+            background: "var(--red)", display: "flex", alignItems: "center", justifyContent: "center",
+            gap: 8, zIndex: 1,
+          }}>
+            <button onClick={() => { removeCustomItem(paycheckKey, line.customId); setSwipeOffset(0); setShowDeleteConfirm(false); }}
+              style={{
+                background: "none", border: "none", color: "#fff", cursor: "pointer",
+                display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+                fontSize: 12, fontWeight: 700, padding: "8px 16px",
+              }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
+              </svg>
+              Delete
+            </button>
+          </div>
+        )}
         {/* Slideable row content */}
         <div
-          onTouchStart={canSwipePaid ? onTouchStart : undefined}
-          onTouchMove={canSwipePaid ? onTouchMove : undefined}
-          onTouchEnd={canSwipePaid ? onTouchEnd : undefined}
-          onMouseDown={canSwipePaid ? onMouseDown : undefined}
-          onClickCapture={canSwipePaid ? onClickCapture : undefined}
+          onTouchStart={canSwipe ? onTouchStart : undefined}
+          onTouchMove={canSwipe ? onTouchMove : undefined}
+          onTouchEnd={canSwipe ? onTouchEnd : undefined}
+          onMouseDown={canSwipe ? onMouseDown : undefined}
+          onClickCapture={canSwipe ? onClickCapture : undefined}
           style={{
             display: "grid", gridTemplateColumns: "28px 48px 1fr auto",
             alignItems: "center", padding: "10px 16px 10px 4px",
@@ -2896,7 +2927,7 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
             transform: `translateX(${swipeOffset}px)`,
             transition: isSwiping ? "none" : "transform 0.3s cubic-bezier(0.22,1,0.36,1)",
             position: "relative", zIndex: 2, userSelect: "none",
-            cursor: canSwipePaid ? "grab" : "default",
+            cursor: canSwipe ? "grab" : "default",
           }}
         >
           {/* Reorder arrows */}
@@ -2930,13 +2961,6 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
               }}>{line.name}</span>
               {isBill && line.recurring && line.frequency && (
                 <FrequencyBadge frequency={line.frequency} />
-              )}
-              {canRemove && (
-                <button onClick={() => removeCustomItem(paycheckKey, line.customId)}
-                  style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: 0, fontSize: 16, lineHeight: 1 }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = "var(--red)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
-                >×</button>
               )}
             </div>
           </div>
