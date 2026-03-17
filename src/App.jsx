@@ -2592,11 +2592,12 @@ function formatShortDate(date) {
   return { month: months[date.getMonth()], day: date.getDate() };
 }
 
-function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplates, savingsGoals, paidDates, customItems, setCustomItems, monthlyRollovers, setMonthlyRollovers, income, settings, setSettings }) {
+function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplates, savingsGoals, setSavingsGoals, paidDates, customItems, setCustomItems, monthlyRollovers, setMonthlyRollovers, income, settings, setSettings }) {
   const [viewDate, setViewDate] = useState(() => new Date());
   const [showAddStream, setShowAddStream] = useState(false);
   const [showAddItem, setShowAddItem] = useState(null);
   const [showAddIncome, setShowAddIncome] = useState(null);
+  const [showAddSavings, setShowAddSavings] = useState(null);
   const [confirmingDelete, setConfirmingDelete] = useState(null);
 
   // Persist income stream toggle in settings
@@ -2673,22 +2674,6 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
     return assignments;
   }, [allPaychecks, monthBills]);
 
-  // Split savings across paychecks
-  const savingsPerPaycheck = useMemo(() => {
-    if (allPaychecks.length === 0) return {};
-    const perCheck = {};
-    allPaychecks.forEach((pc) => { perCheck[pc.key] = []; });
-    savingsGoals.forEach((goal) => {
-      if (goal.monthlyContribution > 0) {
-        const split = Math.round((goal.monthlyContribution / allPaychecks.length) * 100) / 100;
-        allPaychecks.forEach((pc) => {
-          perCheck[pc.key].push({ name: goal.name, icon: goal.icon, amount: split, color: goal.color });
-        });
-      }
-    });
-    return perCheck;
-  }, [allPaychecks, savingsGoals]);
-
   // Build the waterfall schedule for each paycheck
   const paycheckSchedules = useMemo(() => {
     const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
@@ -2696,10 +2681,10 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
     return allPaychecks.map((pc) => {
       const startingBuffer = carryOver;
       const bills = (assignBillsToPaychecks[pc.key] || []).sort((a, b) => a.amount - b.amount);
-      const savings = savingsPerPaycheck[pc.key] || [];
       const custom = customItems[pc.key] || [];
       const customExpenses = custom.filter((i) => i.type === "expense");
       const customIncome = custom.filter((i) => i.type === "income");
+      const customSavings = custom.filter((i) => i.type === "savings");
 
       // Build waterfall lines
       const lines = [];
@@ -2715,9 +2700,9 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
         const billDate = new Date(bill.instanceDate + "T00:00:00");
         lines.push({ type: "bill", name: bill.name, amount: bill.amount, dateInfo: formatShortDate(billDate), isPaid, recurring: bill.recurring, frequency: bill.frequency, rawDate: billDate });
       });
-      // Savings
-      savings.forEach((sg) => {
-        lines.push({ type: "savings", name: `${sg.icon} ${sg.name}`, amount: sg.amount, dateInfo: formatShortDate(pc.date), color: sg.color, rawDate: pc.date });
+      // Savings (manually added by user)
+      customSavings.forEach((cs) => {
+        lines.push({ type: "savings", name: cs.name, amount: cs.amount, dateInfo: formatShortDate(pc.date), color: cs.color || "var(--accent)", customId: cs.id, rawDate: pc.date });
       });
       // Custom expenses
       customExpenses.forEach((ci) => {
@@ -2737,7 +2722,7 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
 
       return { ...pc, lines, startingBuffer, finalBalance, totalIncome: pc.amount + extraIncome };
     });
-  }, [allPaychecks, assignBillsToPaychecks, savingsPerPaycheck, customItems, paidDates, monthlyRollovers, year, month]);
+  }, [allPaychecks, assignBillsToPaychecks, customItems, paidDates, monthlyRollovers, year, month]);
 
   const totalIncome = paycheckSchedules.reduce((s, pc) => s + pc.totalIncome, 0);
   const totalAllocated = paycheckSchedules.reduce((s, pc) => s + (pc.totalIncome - pc.finalBalance), 0);
@@ -2755,7 +2740,38 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
     setShowAddIncome(null);
   };
 
+  const addSavingsContribution = (paycheckKey, goalId, amount) => {
+    const goal = savingsGoals.find((g) => g.id === goalId);
+    if (!goal) return;
+    const today = new Date().toISOString().split("T")[0];
+    // Add to waterfall as a savings custom item
+    setCustomItems((prev) => ({
+      ...prev,
+      [paycheckKey]: [...(prev[paycheckKey] || []), {
+        id: nextId(), type: "savings", name: `${goal.icon} ${goal.name}`,
+        amount, color: goal.color || "var(--accent)", goalId,
+      }],
+    }));
+    // Also update the savings goal's current balance and contributions
+    setSavingsGoals((prev) => prev.map((g) => g.id === goalId ? {
+      ...g,
+      current: g.current + amount,
+      contributions: [...(g.contributions || []), { date: today, amount }],
+    } : g));
+    setShowAddSavings(null);
+  };
+
   const removeCustomItem = (paycheckKey, itemId) => {
+    // If it's a savings item, also reverse the contribution from the goal
+    const items = customItems[paycheckKey] || [];
+    const item = items.find((i) => i.id === itemId);
+    if (item?.type === "savings" && item.goalId) {
+      setSavingsGoals((prev) => prev.map((g) => g.id === item.goalId ? {
+        ...g,
+        current: Math.max(0, g.current - item.amount),
+        contributions: (g.contributions || []).filter((c) => !(c.amount === item.amount && c.date === new Date().toISOString().split("T")[0])),
+      } : g));
+    }
     setCustomItems((prev) => ({ ...prev, [paycheckKey]: (prev[paycheckKey] || []).filter((i) => i.id !== itemId) }));
   };
 
@@ -3060,6 +3076,10 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
                   style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", color: "var(--text-secondary)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
                   + Expense
                 </button>
+                <button onClick={() => setShowAddSavings(allPaychecks[allPaychecks.length - 1]?.key)}
+                  style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", color: "var(--accent)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                  + Savings
+                </button>
                 <button onClick={() => setShowAddIncome(allPaychecks[allPaychecks.length - 1]?.key)}
                   style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", color: "var(--green)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
                   + Income
@@ -3162,6 +3182,16 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
           <AddCustomItemForm type="income" paycheckKey={showAddIncome} onAdd={addCustomItem} onClose={() => setShowAddIncome(null)} />
         </Overlay>
       )}
+      {showAddSavings && (
+        <Overlay onClose={() => setShowAddSavings(null)}>
+          <AddSavingsContributionForm
+            savingsGoals={savingsGoals}
+            paycheckKey={showAddSavings}
+            onAdd={addSavingsContribution}
+            onClose={() => setShowAddSavings(null)}
+          />
+        </Overlay>
+      )}
     </div>
   );
 }
@@ -3246,6 +3276,68 @@ function AddCustomItemForm({ type, paycheckKey, onAdd, onClose }) {
         <button onClick={() => { if (canSubmit) onAdd(paycheckKey, { name: form.name.trim(), amount: parseFloat(form.amount), type }); }} disabled={!canSubmit}
           style={{ padding: "10px 20px", borderRadius: 8, border: "none", background: canSubmit ? (isIncome ? "var(--green)" : "var(--accent)") : "var(--border)", color: canSubmit ? "#fff" : "var(--text-muted)", fontSize: 14, fontWeight: 600, cursor: canSubmit ? "pointer" : "not-allowed" }}>
           {isIncome ? "Add Income" : "Add Expense"}
+        </button>
+      </div>
+    </>
+  );
+}
+
+function AddSavingsContributionForm({ savingsGoals, paycheckKey, onAdd, onClose }) {
+  const [goalId, setGoalId] = useState(savingsGoals[0]?.id || "");
+  const [amount, setAmount] = useState("");
+  const canSubmit = goalId && parseFloat(amount) > 0;
+  const selectedGoal = savingsGoals.find((g) => g.id === Number(goalId) || g.id === goalId);
+  const remaining = selectedGoal ? selectedGoal.target - selectedGoal.current : 0;
+  const quickAmounts = [25, 50, 100, 250].filter((a) => a <= remaining + 10);
+
+  return (
+    <>
+      <div style={{ padding: "24px 24px 8px" }}>
+        <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-primary)" }}>Add Savings Contribution</h3>
+        <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text-muted)" }}>This will update your savings goal progress too</p>
+      </div>
+      <div style={{ padding: "16px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
+        <div>
+          <FieldLabel>Savings Goal</FieldLabel>
+          <select value={goalId} onChange={(e) => setGoalId(e.target.value)} style={{ ...INPUT_STYLE, cursor: "pointer" }}>
+            {savingsGoals.map((g) => (
+              <option key={g.id} value={g.id}>{g.icon} {g.name} — {fmt(g.current)} of {fmt(g.target)}</option>
+            ))}
+          </select>
+        </div>
+        {selectedGoal && (
+          <div style={{ padding: "8px 12px", borderRadius: 8, background: "var(--surface)", border: "1px solid var(--border)" }}>
+            <ProgressBar value={selectedGoal.current} max={selectedGoal.target} color={selectedGoal.color || "var(--accent)"} height={5} />
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 12, color: "var(--text-muted)" }}>
+              <span>{fmt(selectedGoal.current)} saved</span>
+              <span>{fmt(remaining)} to go</span>
+            </div>
+          </div>
+        )}
+        <div>
+          <FieldLabel>Amount</FieldLabel>
+          <input type="number" step="0.01" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" style={INPUT_STYLE} />
+        </div>
+        {quickAmounts.length > 0 && (
+          <div style={{ display: "flex", gap: 8 }}>
+            {quickAmounts.map((qa) => (
+              <button key={qa} onClick={() => setAmount(String(qa))}
+                style={{
+                  flex: 1, padding: "8px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer",
+                  border: "1px solid var(--border)", background: parseFloat(amount) === qa ? "var(--accent)" : "transparent",
+                  color: parseFloat(amount) === qa ? "#fff" : "var(--text-secondary)", transition: "all 0.15s",
+                }}>
+                ${qa}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <div style={{ padding: "12px 24px 20px", display: "flex", gap: 10, justifyContent: "flex-end" }}>
+        <button onClick={onClose} style={{ padding: "10px 20px", borderRadius: 8, border: "1px solid var(--border)", background: "transparent", color: "var(--text-secondary)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+        <button onClick={() => { if (canSubmit) onAdd(paycheckKey, Number(goalId) || goalId, parseFloat(amount)); }} disabled={!canSubmit}
+          style={{ padding: "10px 20px", borderRadius: 8, border: "none", background: canSubmit ? "var(--accent)" : "var(--border)", color: canSubmit ? "#fff" : "var(--text-muted)", fontSize: 14, fontWeight: 600, cursor: canSubmit ? "pointer" : "not-allowed" }}>
+          Add Contribution
         </button>
       </div>
     </>
@@ -8307,7 +8399,7 @@ export default function MaverickOS() {
           )}
           {page === "paycheck" && (
             <PaycheckPlannerPage paycheckStreams={paycheckStreams} setPaycheckStreams={setPaycheckStreams}
-              billTemplates={billTemplates} savingsGoals={savingsGoals} paidDates={paidDates}
+              billTemplates={billTemplates} savingsGoals={savingsGoals} setSavingsGoals={setSavingsGoals} paidDates={paidDates}
               customItems={customItems} setCustomItems={setCustomItems}
               monthlyRollovers={monthlyRollovers} setMonthlyRollovers={setMonthlyRollovers}
               income={income} settings={settings} setSettings={setSettings} />
