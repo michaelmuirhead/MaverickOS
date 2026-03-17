@@ -2797,41 +2797,40 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
     // Swipe state — bidirectional
     const swipeStartX = useRef(0);
     const swipeCurrentX = useRef(0);
+    const swipingRef = useRef(false);
     const [swipeOffset, setSwipeOffset] = useState(0);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-    const [isSwiping, setIsSwiping] = useState(false);
+    const [dragging, setDragging] = useState(false);
     const didSwipe = useRef(false);
     const SWIPE_THRESHOLD = 70;
     const SWIPE_MIN = 8;
 
-    const handleSwipeStart = useCallback((clientX) => {
+    const handleSwipeStart = (clientX) => {
       if (!canSwipe) return;
       swipeStartX.current = clientX;
       swipeCurrentX.current = clientX;
       didSwipe.current = false;
-      setIsSwiping(true);
-    }, [canSwipe]);
+      swipingRef.current = true;
+      setDragging(true);
+    };
 
-    const handleSwipeMove = useCallback((clientX) => {
-      if (!isSwiping || !canSwipe) return;
+    const handleSwipeMove = (clientX) => {
+      if (!swipingRef.current || !canSwipe) return;
       swipeCurrentX.current = clientX;
       const dx = clientX - swipeStartX.current;
       if (Math.abs(dx) > SWIPE_MIN) didSwipe.current = true;
-      // Right swipe (paid) — only for bills
       if (dx > 0 && canSwipePaid) setSwipeOffset(Math.min(dx, 120));
-      // Left swipe (delete) — only for custom items
       if (dx < 0 && canRemove) setSwipeOffset(Math.max(dx, -140));
-    }, [isSwiping, canSwipe, canSwipePaid, canRemove]);
+    };
 
-    const handleSwipeEnd = useCallback(() => {
-      if (!isSwiping) return;
-      setIsSwiping(false);
+    const handleSwipeEnd = () => {
+      if (!swipingRef.current) return;
+      swipingRef.current = false;
+      setDragging(false);
       const dx = swipeCurrentX.current - swipeStartX.current;
-      // Swipe right → toggle paid
       if (dx > SWIPE_THRESHOLD && canSwipePaid) {
         toggleBillPaid(line.instanceKey);
         setSwipeOffset(0);
-      // Swipe left → reveal delete
       } else if (dx < -SWIPE_THRESHOLD && canRemove) {
         setSwipeOffset(-140);
         setShowDeleteConfirm(true);
@@ -2839,24 +2838,24 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
         setSwipeOffset(0);
         setShowDeleteConfirm(false);
       }
-    }, [isSwiping, canSwipePaid, canRemove, line.instanceKey, toggleBillPaid]);
+    };
 
-    const onTouchStart = useCallback((e) => handleSwipeStart(e.touches[0].clientX), [handleSwipeStart]);
-    const onTouchMove = useCallback((e) => handleSwipeMove(e.touches[0].clientX), [handleSwipeMove]);
-    const onTouchEnd = useCallback(() => handleSwipeEnd(), [handleSwipeEnd]);
+    const onTouchStart = (e) => handleSwipeStart(e.touches[0].clientX);
+    const onTouchMove = (e) => handleSwipeMove(e.touches[0].clientX);
+    const onTouchEnd = () => handleSwipeEnd();
 
-    const onMouseDown = useCallback((e) => {
+    const onMouseDown = (e) => {
       if (!canSwipe) return;
       handleSwipeStart(e.clientX);
       const onMM = (ev) => handleSwipeMove(ev.clientX);
       const onMU = () => { document.removeEventListener("mousemove", onMM); document.removeEventListener("mouseup", onMU); handleSwipeEnd(); };
       document.addEventListener("mousemove", onMM);
       document.addEventListener("mouseup", onMU);
-    }, [canSwipe, handleSwipeStart, handleSwipeMove, handleSwipeEnd]);
+    };
 
-    const onClickCapture = useCallback((e) => {
+    const onClickCapture = (e) => {
       if (didSwipe.current) { e.stopPropagation(); e.preventDefault(); didSwipe.current = false; }
-    }, []);
+    };
 
     const arrowBtn = (direction, onClick, disabled) => (
       <button onClick={(e) => { e.stopPropagation(); if (!disabled) onClick(); }}
@@ -2925,7 +2924,7 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
             borderBottom: isLast ? "none" : "1px solid var(--border-subtle)",
             background: isIncome ? "var(--green-bg)" : line.isPaid ? "var(--surface)" : "var(--card)",
             transform: `translateX(${swipeOffset}px)`,
-            transition: isSwiping ? "none" : "transform 0.3s cubic-bezier(0.22,1,0.36,1)",
+            transition: dragging ? "none" : "transform 0.3s cubic-bezier(0.22,1,0.36,1)",
             position: "relative", zIndex: 2, userSelect: "none",
             cursor: canSwipe ? "grab" : "default",
           }}
