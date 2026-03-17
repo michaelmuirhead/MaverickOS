@@ -33,11 +33,178 @@ const DEFAULT_SETTINGS = {
   currency: "USD",
   householdName: "My Household",
   theme: "dark",
+  colorTheme: "blue_gold",
   startDayOfMonth: 1,
   // Pages visibility — toggle off pages you don't use
   hiddenPages: [],
   // Dashboard widget configuration — order and visibility
   dashboardWidgets: ["today", "networth", "metrics", "income", "spending", "bills", "savings", "debt"],
+};
+
+// Color theme palettes — each defines dark and light CSS variable sets
+const COLOR_THEMES = {
+  blue_gold: {
+    label: "Blue & Gold", preview: ["#3b82f6", "#f0c644"],
+    dark: {
+      "--bg": "#0a0e17", "--card": "#111827", "--surface": "#0d1220", "--sidebar": "#0b0f1a",
+      "--border": "#1e2a3f", "--border-hover": "#2d3f5a", "--border-subtle": "#162032",
+      "--track": "#162032", "--nav-active": "#152238", "--nav-hover": "#111d30",
+      "--text-primary": "#e8ecf4", "--text-secondary": "#8fa3c0", "--text-muted": "#5a7194",
+      "--icon-bg": "#152238",
+      "--green": "#34d399", "--green-bg": "#34d39918",
+      "--amber": "#f0c644", "--amber-bg": "#f0c64418",
+      "--red": "#f87171", "--red-bg": "#f8717118",
+      "--accent": "#3b82f6",
+      "--shadow": "rgba(0,0,0,0.2)", "--shadow-heavy": "rgba(0,0,0,0.5)",
+    },
+    light: {
+      "--bg": "#f0f4f8", "--card": "#ffffff", "--surface": "#f7f9fc", "--sidebar": "#edf1f7",
+      "--border": "#d0dae8", "--border-hover": "#b0c0d4", "--border-subtle": "#e2e8f0",
+      "--track": "#e2e8f0", "--nav-active": "#dbe4f0", "--nav-hover": "#e8edf4",
+      "--text-primary": "#1a2332", "--text-secondary": "#4a5e78", "--text-muted": "#7a8ea8",
+      "--icon-bg": "#e8edf5",
+      "--green": "#059669", "--green-bg": "#05966918",
+      "--amber": "#d97706", "--amber-bg": "#d9770618",
+      "--red": "#dc2626", "--red-bg": "#dc262618",
+      "--accent": "#2563eb",
+      "--shadow": "rgba(0,0,0,0.06)", "--shadow-heavy": "rgba(0,0,0,0.12)",
+    },
+  },
+  midnight: {
+    label: "Midnight Purple", preview: ["#8b5cf6", "#a78bfa"],
+    dark: {
+      "--bg": "#0c0a14", "--card": "#16132a", "--surface": "#110e22", "--sidebar": "#0e0b1c",
+      "--border": "#2a2545", "--border-hover": "#3d3660", "--border-subtle": "#211d3a",
+      "--track": "#211d3a", "--nav-active": "#231f3e", "--nav-hover": "#1a1630",
+      "--text-primary": "#ece8f4", "--text-secondary": "#a99fc0", "--text-muted": "#6e6294",
+      "--icon-bg": "#231f3e",
+      "--green": "#34d399", "--green-bg": "#34d39918",
+      "--amber": "#fbbf24", "--amber-bg": "#fbbf2418",
+      "--red": "#f87171", "--red-bg": "#f8717118",
+      "--accent": "#8b5cf6",
+      "--shadow": "rgba(0,0,0,0.2)", "--shadow-heavy": "rgba(0,0,0,0.5)",
+    },
+    light: {
+      "--bg": "#f5f3fa", "--card": "#ffffff", "--surface": "#f9f8fc", "--sidebar": "#f0eef8",
+      "--border": "#d8d0ea", "--border-hover": "#bfb4da", "--border-subtle": "#e8e4f2",
+      "--track": "#e8e4f2", "--nav-active": "#e4e0f2", "--nav-hover": "#ece8f6",
+      "--text-primary": "#1e1630", "--text-secondary": "#524878", "--text-muted": "#8070a0",
+      "--icon-bg": "#ece6f5",
+      "--green": "#059669", "--green-bg": "#05966918",
+      "--amber": "#d97706", "--amber-bg": "#d9770618",
+      "--red": "#dc2626", "--red-bg": "#dc262618",
+      "--accent": "#7c3aed",
+      "--shadow": "rgba(0,0,0,0.06)", "--shadow-heavy": "rgba(0,0,0,0.12)",
+    },
+  },
+  emerald: {
+    label: "Emerald", preview: ["#10b981", "#34d399"],
+    dark: {
+      "--bg": "#0a1210", "--card": "#111f1b", "--surface": "#0d1815", "--sidebar": "#0b1412",
+      "--border": "#1e3a32", "--border-hover": "#2d5a4a", "--border-subtle": "#16302a",
+      "--track": "#16302a", "--nav-active": "#153028", "--nav-hover": "#112820",
+      "--text-primary": "#e8f4f0", "--text-secondary": "#8fc0b0", "--text-muted": "#5a9480",
+      "--icon-bg": "#153028",
+      "--green": "#34d399", "--green-bg": "#34d39918",
+      "--amber": "#fbbf24", "--amber-bg": "#fbbf2418",
+      "--red": "#f87171", "--red-bg": "#f8717118",
+      "--accent": "#10b981",
+      "--shadow": "rgba(0,0,0,0.2)", "--shadow-heavy": "rgba(0,0,0,0.5)",
+    },
+    light: {
+      "--bg": "#f0f8f5", "--card": "#ffffff", "--surface": "#f5fbf8", "--sidebar": "#eaf5f0",
+      "--border": "#c0e0d4", "--border-hover": "#a0d0be", "--border-subtle": "#daeee4",
+      "--track": "#daeee4", "--nav-active": "#d0eadc", "--nav-hover": "#e4f4ec",
+      "--text-primary": "#0f2920", "--text-secondary": "#2d6850", "--text-muted": "#5a9a80",
+      "--icon-bg": "#e0f2ea",
+      "--green": "#059669", "--green-bg": "#05966918",
+      "--amber": "#d97706", "--amber-bg": "#d9770618",
+      "--red": "#dc2626", "--red-bg": "#dc262618",
+      "--accent": "#059669",
+      "--shadow": "rgba(0,0,0,0.06)", "--shadow-heavy": "rgba(0,0,0,0.12)",
+    },
+  },
+  rose: {
+    label: "Rose", preview: ["#f43f5e", "#fb7185"],
+    dark: {
+      "--bg": "#110a0d", "--card": "#1f1116", "--surface": "#180d12", "--sidebar": "#140b10",
+      "--border": "#3a1e28", "--border-hover": "#5a2d3e", "--border-subtle": "#301624",
+      "--track": "#301624", "--nav-active": "#381a28", "--nav-hover": "#2c1420",
+      "--text-primary": "#f4e8ec", "--text-secondary": "#c08fa0", "--text-muted": "#945a70",
+      "--icon-bg": "#381a28",
+      "--green": "#34d399", "--green-bg": "#34d39918",
+      "--amber": "#fbbf24", "--amber-bg": "#fbbf2418",
+      "--red": "#f87171", "--red-bg": "#f8717118",
+      "--accent": "#f43f5e",
+      "--shadow": "rgba(0,0,0,0.2)", "--shadow-heavy": "rgba(0,0,0,0.5)",
+    },
+    light: {
+      "--bg": "#fdf2f4", "--card": "#ffffff", "--surface": "#fef7f8", "--sidebar": "#fceef0",
+      "--border": "#f0c8d0", "--border-hover": "#e0a8b4", "--border-subtle": "#f5dce2",
+      "--track": "#f5dce2", "--nav-active": "#f5d4dc", "--nav-hover": "#fae4ea",
+      "--text-primary": "#2e1018", "--text-secondary": "#7a3048", "--text-muted": "#a86078",
+      "--icon-bg": "#fce4ea",
+      "--green": "#059669", "--green-bg": "#05966918",
+      "--amber": "#d97706", "--amber-bg": "#d9770618",
+      "--red": "#dc2626", "--red-bg": "#dc262618",
+      "--accent": "#e11d48",
+      "--shadow": "rgba(0,0,0,0.06)", "--shadow-heavy": "rgba(0,0,0,0.12)",
+    },
+  },
+  slate: {
+    label: "Classic", preview: ["#6366f1", "#818cf8"],
+    dark: {
+      "--bg": "#0c0c0e", "--card": "#161619", "--surface": "#111114", "--sidebar": "#101013",
+      "--border": "#26262e", "--border-hover": "#3a3a46", "--border-subtle": "#1e1e24",
+      "--track": "#1e1e24", "--nav-active": "#1e1e28", "--nav-hover": "#18181c",
+      "--text-primary": "#e8e8ec", "--text-secondary": "#a0a0b0", "--text-muted": "#6a6a7a",
+      "--icon-bg": "#1e1e28",
+      "--green": "#34d399", "--green-bg": "#34d39918",
+      "--amber": "#fbbf24", "--amber-bg": "#fbbf2418",
+      "--red": "#f87171", "--red-bg": "#f8717118",
+      "--accent": "#6366f1",
+      "--shadow": "rgba(0,0,0,0.15)", "--shadow-heavy": "rgba(0,0,0,0.4)",
+    },
+    light: {
+      "--bg": "#f4f4f6", "--card": "#ffffff", "--surface": "#f9f9fb", "--sidebar": "#efefef",
+      "--border": "#d4d4dc", "--border-hover": "#b8b8c4", "--border-subtle": "#e4e4ea",
+      "--track": "#e4e4ea", "--nav-active": "#e0e0e8", "--nav-hover": "#eaeaf0",
+      "--text-primary": "#1a1a22", "--text-secondary": "#52525e", "--text-muted": "#80808e",
+      "--icon-bg": "#eaeaf0",
+      "--green": "#059669", "--green-bg": "#05966918",
+      "--amber": "#d97706", "--amber-bg": "#d9770618",
+      "--red": "#dc2626", "--red-bg": "#dc262618",
+      "--accent": "#4f46e5",
+      "--shadow": "rgba(0,0,0,0.06)", "--shadow-heavy": "rgba(0,0,0,0.12)",
+    },
+  },
+  amber: {
+    label: "Amber", preview: ["#f59e0b", "#fbbf24"],
+    dark: {
+      "--bg": "#0e0c08", "--card": "#1c1a10", "--surface": "#15130c", "--sidebar": "#12100a",
+      "--border": "#3a3420", "--border-hover": "#5a4e30", "--border-subtle": "#302a1a",
+      "--track": "#302a1a", "--nav-active": "#352e1c", "--nav-hover": "#2a2416",
+      "--text-primary": "#f4f0e8", "--text-secondary": "#c0b48f", "--text-muted": "#94845a",
+      "--icon-bg": "#352e1c",
+      "--green": "#34d399", "--green-bg": "#34d39918",
+      "--amber": "#fbbf24", "--amber-bg": "#fbbf2418",
+      "--red": "#f87171", "--red-bg": "#f8717118",
+      "--accent": "#f59e0b",
+      "--shadow": "rgba(0,0,0,0.2)", "--shadow-heavy": "rgba(0,0,0,0.5)",
+    },
+    light: {
+      "--bg": "#faf8f2", "--card": "#ffffff", "--surface": "#fdfcf7", "--sidebar": "#f5f2ea",
+      "--border": "#e8dfc8", "--border-hover": "#d4c8a8", "--border-subtle": "#f0eadc",
+      "--track": "#f0eadc", "--nav-active": "#eee6d4", "--nav-hover": "#f5f0e4",
+      "--text-primary": "#2a2410", "--text-secondary": "#6a5e38", "--text-muted": "#9a8e60",
+      "--icon-bg": "#f2ecdc",
+      "--green": "#059669", "--green-bg": "#05966918",
+      "--amber": "#d97706", "--amber-bg": "#d9770618",
+      "--red": "#dc2626", "--red-bg": "#dc262618",
+      "--accent": "#d97706",
+      "--shadow": "rgba(0,0,0,0.06)", "--shadow-heavy": "rgba(0,0,0,0.12)",
+    },
+  },
 };
 
 // All possible dashboard widgets
@@ -5899,7 +6066,7 @@ function MonthlySummaryPage({ categories, transactions, income, billTemplates, p
 // SETTINGS PAGE
 // ─────────────────────────────────────────────
 
-function SettingsPage({ settings, setSettings, onExport, onImport, onReset }) {
+function SettingsPage({ settings, setSettings, onExport, onImport, onReset, onRestartWizard }) {
   const fileRef = useRef(null);
   const hiddenPages = settings.hiddenPages || [];
   const dashWidgets = settings.dashboardWidgets || DEFAULT_SETTINGS.dashboardWidgets;
@@ -5933,6 +6100,68 @@ function SettingsPage({ settings, setSettings, onExport, onImport, onReset }) {
         <div style={{ padding: "0 20px 20px" }}>
           <FieldLabel>Household Name</FieldLabel>
           <input value={settings.householdName} onChange={(e) => setSettings((s) => ({ ...s, householdName: e.target.value }))} style={INPUT_STYLE} />
+        </div>
+      </Card>
+
+      {/* Appearance — Dark / Light toggle */}
+      <Card style={{ marginBottom: 16 }}>
+        <CardHeader title="Appearance" />
+        <div style={{ padding: "0 16px 16px" }}>
+          <div style={{ display: "flex", gap: 10 }}>
+            {[
+              { key: "dark", label: "Dark", icon: "🌙" },
+              { key: "light", label: "Light", icon: "☀" },
+            ].map((mode) => {
+              const active = (settings.theme || "dark") === mode.key;
+              return (
+                <div key={mode.key} onClick={() => setSettings((s) => ({ ...s, theme: mode.key }))}
+                  style={{
+                    flex: 1, padding: "14px 16px", borderRadius: 10, cursor: "pointer",
+                    border: `2px solid ${active ? "var(--accent)" : "var(--border)"}`,
+                    background: active ? "var(--accent)" + "10" : "var(--surface)",
+                    transition: "all 0.15s", textAlign: "center",
+                  }}>
+                  <div style={{ fontSize: 22, marginBottom: 4 }}>{mode.icon}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: active ? "var(--text-primary)" : "var(--text-secondary)" }}>
+                    {mode.label}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </Card>
+
+      {/* Color Theme */}
+      <Card style={{ marginBottom: 16 }}>
+        <CardHeader title="Color Theme" action={<span style={{ fontSize: 12, color: "var(--text-muted)" }}>Changes apply instantly</span>} />
+        <div style={{ padding: "0 16px 16px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 10 }}>
+            {Object.entries(COLOR_THEMES).map(([key, theme]) => {
+              const active = (settings.colorTheme || "blue_gold") === key;
+              return (
+                <div key={key} onClick={() => setSettings((s) => ({ ...s, colorTheme: key }))}
+                  style={{
+                    padding: "12px 14px", borderRadius: 10, cursor: "pointer",
+                    border: `2px solid ${active ? "var(--accent)" : "var(--border)"}`,
+                    background: active ? "var(--accent)" + "10" : "var(--surface)",
+                    transition: "all 0.15s",
+                  }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    {theme.preview.map((color, i) => (
+                      <span key={i} style={{ width: 16, height: 16, borderRadius: 4, background: color, border: "1px solid rgba(255,255,255,0.1)" }} />
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: active ? "var(--text-primary)" : "var(--text-secondary)" }}>
+                    {theme.label}
+                  </div>
+                  {active && (
+                    <div style={{ fontSize: 10, color: "var(--accent)", fontWeight: 700, marginTop: 2, textTransform: "uppercase", letterSpacing: "0.05em" }}>Active</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </Card>
 
@@ -6041,7 +6270,19 @@ function SettingsPage({ settings, setSettings, onExport, onImport, onReset }) {
       {/* Danger zone */}
       <Card>
         <CardHeader title="Danger Zone" />
-        <div style={{ padding: "0 20px 20px" }}>
+        <div style={{ padding: "0 20px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ padding: "16px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>Restart Setup Wizard</div>
+                <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Clear your data and start fresh with the onboarding flow.</div>
+              </div>
+              <button onClick={onRestartWizard} style={{
+                padding: "8px 16px", borderRadius: 8, border: "1px solid var(--accent)",
+                background: "transparent", color: "var(--accent)", fontSize: 13, fontWeight: 600, cursor: "pointer",
+              }}>Restart</button>
+            </div>
+          </div>
           <div style={{ padding: "16px", borderRadius: 10, border: "1px solid var(--red)33", background: "var(--red-bg)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
@@ -7309,6 +7550,339 @@ function PwaHead() {
 }
 
 // ─────────────────────────────────────────────
+// ONBOARDING WIZARD
+// ─────────────────────────────────────────────
+
+const ONBOARDING_STEPS = [
+  { id: "welcome", title: "Welcome to MaverickOS", icon: "💰" },
+  { id: "income", title: "Your Income", icon: "💼" },
+  { id: "bills", title: "Monthly Bills", icon: "📋" },
+  { id: "finances", title: "Debts & Savings", icon: "🏦" },
+  { id: "theme", title: "Make It Yours", icon: "🎨" },
+];
+
+function OnboardingWizard({ onComplete }) {
+  const [step, setStep] = useState(0);
+  const [data, setData] = useState({
+    householdName: "",
+    incomeStreams: [{ id: 1, source: "", amount: "", frequency: "semimonthly" }],
+    bills: [{ id: 1, name: "", amount: "", frequency: "monthly" }],
+    debts: [{ id: 1, name: "", balance: "", minPayment: "", apr: "" }],
+    savingsTarget: "",
+    checkingBalance: "",
+    savingsBalance: "",
+    colorTheme: "blue_gold",
+    theme: "dark",
+  });
+
+  const update = (key, val) => setData((d) => ({ ...d, [key]: val }));
+  const currentStep = ONBOARDING_STEPS[step];
+  const isFirst = step === 0;
+  const isLast = step === ONBOARDING_STEPS.length - 1;
+
+  const addListItem = (key, template) => {
+    setData((d) => ({ ...d, [key]: [...d[key], { ...template, id: d[key].length + 1 }] }));
+  };
+
+  const updateListItem = (key, id, field, value) => {
+    setData((d) => ({ ...d, [key]: d[key].map((item) => item.id === id ? { ...item, [field]: value } : item) }));
+  };
+
+  const removeListItem = (key, id) => {
+    setData((d) => ({ ...d, [key]: d[key].filter((item) => item.id !== id) }));
+  };
+
+  const handleFinish = () => {
+    // Build real data from wizard inputs
+    const incomes = data.incomeStreams
+      .filter((s) => s.source.trim() && parseFloat(s.amount) > 0)
+      .map((s, i) => ({ id: i + 1, source: s.source.trim(), amount: parseFloat(s.amount), date: new Date().toISOString().split("T")[0], recurring: true, frequency: s.frequency, category: "employment", icon: "💼" }));
+
+    const bills = data.bills
+      .filter((b) => b.name.trim() && parseFloat(b.amount) > 0)
+      .map((b, i) => ({ id: i + 1, name: b.name.trim(), amount: parseFloat(b.amount), anchorDate: new Date().toISOString().split("T")[0], recurring: true, frequency: b.frequency }));
+
+    const debts = data.debts
+      .filter((d) => d.name.trim() && parseFloat(d.balance) > 0)
+      .map((d, i) => ({ id: i + 1, name: d.name.trim(), balance: parseFloat(d.balance), originalBalance: parseFloat(d.balance), minPayment: parseFloat(d.minPayment) || 0, apr: parseFloat(d.apr) || 0, icon: "💳", lender: "", startDate: new Date().toISOString().split("T")[0], payments: [] }));
+
+    const assets = [];
+    if (parseFloat(data.checkingBalance) > 0) assets.push({ id: 1, name: "Checking Account", value: parseFloat(data.checkingBalance), category: "cash", icon: "🏦" });
+    if (parseFloat(data.savingsBalance) > 0) assets.push({ id: 2, name: "Savings Account", value: parseFloat(data.savingsBalance), category: "cash", icon: "💰" });
+
+    const savingsGoals = [];
+    if (parseFloat(data.savingsTarget) > 0) {
+      savingsGoals.push({ id: 1, name: "Emergency Fund", target: parseFloat(data.savingsTarget), current: parseFloat(data.savingsBalance) || 0, icon: "🛡", monthlyContribution: 0, deadline: "", color: "var(--green)", contributions: [] });
+    }
+
+    const newSettings = {
+      ...DEFAULT_SETTINGS,
+      householdName: data.householdName.trim() || "My Household",
+      colorTheme: data.colorTheme,
+      theme: data.theme,
+      onboardingComplete: true,
+    };
+
+    onComplete({
+      income: incomes.length > 0 ? incomes : INITIAL_INCOME,
+      billTemplates: bills.length > 0 ? bills : INITIAL_BILL_TEMPLATES,
+      debts: debts.length > 0 ? debts : INITIAL_DEBTS,
+      assets: assets.length > 0 ? assets : INITIAL_ASSETS,
+      savingsGoals: savingsGoals.length > 0 ? savingsGoals : INITIAL_SAVINGS_GOALS,
+      categories: INITIAL_CATEGORIES,
+      transactions: [],
+      paidDates: new Set(),
+      settings: newSettings,
+    });
+  };
+
+  // Get active theme for preview
+  const previewTheme = COLOR_THEMES[data.colorTheme] || COLOR_THEMES.blue_gold;
+  const previewVars = data.theme === "light" ? previewTheme.light : previewTheme.dark;
+
+  return (
+    <div style={{
+      ...previewVars,
+      fontFamily: "'DM Sans', 'SF Pro Display', -apple-system, sans-serif",
+      background: "var(--bg)", color: "var(--text-primary)",
+      minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
+      padding: 20,
+    }}>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+      <div style={{ width: "100%", maxWidth: 520 }}>
+        {/* Progress dots */}
+        <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 32 }}>
+          {ONBOARDING_STEPS.map((s, i) => (
+            <div key={s.id} style={{
+              width: i === step ? 28 : 8, height: 8, borderRadius: 4,
+              background: i <= step ? "var(--accent)" : "var(--track)",
+              transition: "all 0.3s",
+            }} />
+          ))}
+        </div>
+
+        {/* Step icon + title */}
+        <div style={{ textAlign: "center", marginBottom: 28 }}>
+          <div style={{ fontSize: 40, marginBottom: 8 }}>{currentStep.icon}</div>
+          <h2 style={{ margin: 0, fontSize: 24, fontWeight: 700, letterSpacing: "-0.02em" }}>{currentStep.title}</h2>
+        </div>
+
+        {/* Step content */}
+        <Card>
+          <div style={{ padding: "24px" }}>
+
+            {/* STEP 0: Welcome */}
+            {step === 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.6, textAlign: "center" }}>
+                  Let's set up your personal finance dashboard. This takes about 2 minutes — you can always change everything later in Settings.
+                </div>
+                <div>
+                  <FieldLabel>What should we call your household?</FieldLabel>
+                  <input value={data.householdName} onChange={(e) => update("householdName", e.target.value)} placeholder="e.g. The Smiths, My Budget, Home" style={INPUT_STYLE} />
+                </div>
+              </div>
+            )}
+
+            {/* STEP 1: Income */}
+            {step === 1 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 4 }}>Add your regular income sources. You can add more later.</div>
+                {data.incomeStreams.map((s) => (
+                  <div key={s.id} style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                    <div style={{ flex: 2 }}>
+                      {s.id === 1 && <FieldLabel>Source</FieldLabel>}
+                      <input value={s.source} onChange={(e) => updateListItem("incomeStreams", s.id, "source", e.target.value)} placeholder="e.g. My Salary" style={INPUT_STYLE} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      {s.id === 1 && <FieldLabel>Amount</FieldLabel>}
+                      <input type="number" step="0.01" min="0" value={s.amount} onChange={(e) => updateListItem("incomeStreams", s.id, "amount", e.target.value)} placeholder="0" style={INPUT_STYLE} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      {s.id === 1 && <FieldLabel>Frequency</FieldLabel>}
+                      <select value={s.frequency} onChange={(e) => updateListItem("incomeStreams", s.id, "frequency", e.target.value)} style={{ ...INPUT_STYLE, cursor: "pointer" }}>
+                        <option value="weekly">Weekly</option>
+                        <option value="biweekly">Biweekly</option>
+                        <option value="semimonthly">1st & 15th</option>
+                        <option value="monthly">Monthly</option>
+                      </select>
+                    </div>
+                    {data.incomeStreams.length > 1 && (
+                      <button onClick={() => removeListItem("incomeStreams", s.id)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "8px 0", fontSize: 18 }}>×</button>
+                    )}
+                  </div>
+                ))}
+                <button onClick={() => addListItem("incomeStreams", { source: "", amount: "", frequency: "semimonthly" })}
+                  style={{ padding: "8px", borderRadius: 8, border: "1px dashed var(--border)", background: "transparent", color: "var(--text-muted)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                  + Add Another Income
+                </button>
+              </div>
+            )}
+
+            {/* STEP 2: Bills */}
+            {step === 2 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 4 }}>What are your regular monthly bills? Don't worry about getting them all — add more anytime.</div>
+                {data.bills.map((b) => (
+                  <div key={b.id} style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                    <div style={{ flex: 2 }}>
+                      {b.id === 1 && <FieldLabel>Bill Name</FieldLabel>}
+                      <input value={b.name} onChange={(e) => updateListItem("bills", b.id, "name", e.target.value)} placeholder="e.g. Rent, Electric" style={INPUT_STYLE} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      {b.id === 1 && <FieldLabel>Amount</FieldLabel>}
+                      <input type="number" step="0.01" min="0" value={b.amount} onChange={(e) => updateListItem("bills", b.id, "amount", e.target.value)} placeholder="0" style={INPUT_STYLE} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      {b.id === 1 && <FieldLabel>Frequency</FieldLabel>}
+                      <select value={b.frequency} onChange={(e) => updateListItem("bills", b.id, "frequency", e.target.value)} style={{ ...INPUT_STYLE, cursor: "pointer" }}>
+                        <option value="monthly">Monthly</option>
+                        <option value="biweekly">Biweekly</option>
+                        <option value="quarterly">Quarterly</option>
+                        <option value="yearly">Yearly</option>
+                      </select>
+                    </div>
+                    {data.bills.length > 1 && (
+                      <button onClick={() => removeListItem("bills", b.id)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "8px 0", fontSize: 18 }}>×</button>
+                    )}
+                  </div>
+                ))}
+                <button onClick={() => addListItem("bills", { name: "", amount: "", frequency: "monthly" })}
+                  style={{ padding: "8px", borderRadius: 8, border: "1px dashed var(--border)", background: "transparent", color: "var(--text-muted)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                  + Add Another Bill
+                </button>
+              </div>
+            )}
+
+            {/* STEP 3: Debts & Savings */}
+            {step === 3 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Where do you stand financially right now?</div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div>
+                    <FieldLabel>Checking Balance</FieldLabel>
+                    <input type="number" step="0.01" min="0" value={data.checkingBalance} onChange={(e) => update("checkingBalance", e.target.value)} placeholder="0" style={INPUT_STYLE} />
+                  </div>
+                  <div>
+                    <FieldLabel>Savings Balance</FieldLabel>
+                    <input type="number" step="0.01" min="0" value={data.savingsBalance} onChange={(e) => update("savingsBalance", e.target.value)} placeholder="0" style={INPUT_STYLE} />
+                  </div>
+                </div>
+
+                <div>
+                  <FieldLabel>Emergency Fund Target (optional)</FieldLabel>
+                  <input type="number" step="100" min="0" value={data.savingsTarget} onChange={(e) => update("savingsTarget", e.target.value)} placeholder="e.g. 15000" style={INPUT_STYLE} />
+                </div>
+
+                <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 10 }}>Any debts? (optional)</div>
+                  {data.debts.map((d) => (
+                    <div key={d.id} style={{ display: "flex", gap: 8, alignItems: "flex-end", marginBottom: 8 }}>
+                      <div style={{ flex: 2 }}>
+                        {d.id === 1 && <FieldLabel>Name</FieldLabel>}
+                        <input value={d.name} onChange={(e) => updateListItem("debts", d.id, "name", e.target.value)} placeholder="e.g. Credit Card" style={INPUT_STYLE} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        {d.id === 1 && <FieldLabel>Balance</FieldLabel>}
+                        <input type="number" step="0.01" min="0" value={d.balance} onChange={(e) => updateListItem("debts", d.id, "balance", e.target.value)} placeholder="0" style={INPUT_STYLE} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        {d.id === 1 && <FieldLabel>Min Pmt</FieldLabel>}
+                        <input type="number" step="0.01" min="0" value={d.minPayment} onChange={(e) => updateListItem("debts", d.id, "minPayment", e.target.value)} placeholder="0" style={INPUT_STYLE} />
+                      </div>
+                      <div style={{ flex: 0.7 }}>
+                        {d.id === 1 && <FieldLabel>APR %</FieldLabel>}
+                        <input type="number" step="0.1" min="0" value={d.apr} onChange={(e) => updateListItem("debts", d.id, "apr", e.target.value)} placeholder="0" style={INPUT_STYLE} />
+                      </div>
+                      {data.debts.length > 1 && (
+                        <button onClick={() => removeListItem("debts", d.id)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "8px 0", fontSize: 18 }}>×</button>
+                      )}
+                    </div>
+                  ))}
+                  <button onClick={() => addListItem("debts", { name: "", balance: "", minPayment: "", apr: "" })}
+                    style={{ padding: "6px", borderRadius: 8, border: "1px dashed var(--border)", background: "transparent", color: "var(--text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer", width: "100%" }}>
+                    + Add Debt
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 4: Theme */}
+            {step === 4 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div style={{ fontSize: 13, color: "var(--text-muted)", textAlign: "center" }}>Pick a look that feels right. You can change this anytime in Settings.</div>
+
+                {/* Dark / Light */}
+                <div style={{ display: "flex", gap: 10 }}>
+                  {[{ key: "dark", label: "Dark", icon: "🌙" }, { key: "light", label: "Light", icon: "☀" }].map((mode) => {
+                    const active = data.theme === mode.key;
+                    return (
+                      <div key={mode.key} onClick={() => update("theme", mode.key)}
+                        style={{ flex: 1, padding: "12px", borderRadius: 10, cursor: "pointer", border: `2px solid ${active ? "var(--accent)" : "var(--border)"}`, background: active ? "var(--accent)" + "10" : "var(--surface)", textAlign: "center", transition: "all 0.15s" }}>
+                        <div style={{ fontSize: 20, marginBottom: 2 }}>{mode.icon}</div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: active ? "var(--text-primary)" : "var(--text-secondary)" }}>{mode.label}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Color themes */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                  {Object.entries(COLOR_THEMES).map(([key, theme]) => {
+                    const active = data.colorTheme === key;
+                    return (
+                      <div key={key} onClick={() => update("colorTheme", key)}
+                        style={{ padding: "10px", borderRadius: 8, cursor: "pointer", border: `2px solid ${active ? "var(--accent)" : "var(--border)"}`, background: active ? "var(--accent)" + "10" : "var(--surface)", textAlign: "center", transition: "all 0.15s" }}>
+                        <div style={{ display: "flex", justifyContent: "center", gap: 4, marginBottom: 6 }}>
+                          {theme.preview.map((c, i) => <span key={i} style={{ width: 14, height: 14, borderRadius: 3, background: c }} />)}
+                        </div>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: active ? "var(--text-primary)" : "var(--text-muted)" }}>{theme.label}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Navigation buttons */}
+          <div style={{ padding: "0 24px 24px", display: "flex", gap: 10 }}>
+            {!isFirst && (
+              <button onClick={() => setStep((s) => s - 1)}
+                style={{ flex: 1, padding: "12px", borderRadius: 10, border: "1px solid var(--border)", background: "transparent", color: "var(--text-secondary)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+                Back
+              </button>
+            )}
+            {isFirst && (
+              <button onClick={() => {
+                // Skip onboarding — use sample data
+                onComplete({ settings: { ...DEFAULT_SETTINGS, onboardingComplete: true } });
+              }}
+                style={{ flex: 1, padding: "12px", borderRadius: 10, border: "1px solid var(--border)", background: "transparent", color: "var(--text-muted)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+                Skip — Use Sample Data
+              </button>
+            )}
+            <button onClick={() => {
+              if (isLast) handleFinish();
+              else setStep((s) => s + 1);
+            }}
+              style={{ flex: 1, padding: "12px", borderRadius: 10, border: "none", background: "var(--accent)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+              {isLast ? "Let's Go!" : "Next"}
+            </button>
+          </div>
+        </Card>
+
+        {/* Step counter */}
+        <div style={{ textAlign: "center", marginTop: 16, fontSize: 12, color: "var(--text-muted)" }}>
+          Step {step + 1} of {ONBOARDING_STEPS.length}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // ROOT APP
 // ─────────────────────────────────────────────
 
@@ -7317,6 +7891,7 @@ export default function MaverickOS() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [mobileMore, setMobileMore] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const isMobile = useIsMobile();
 
   const [categories, setCategories] = useState(INITIAL_CATEGORIES);
@@ -7335,9 +7910,14 @@ export default function MaverickOS() {
   const [recurringTransactions, setRecurringTransactions] = useState(INITIAL_RECURRING_TRANSACTIONS);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
 
-  // Load from localStorage on mount
+  // Load from localStorage on mount — show onboarding if no saved data
   useEffect(() => {
     const saved = loadState();
+    if (!saved) {
+      setShowOnboarding(true);
+      setLoaded(true);
+      return;
+    }
     if (saved) {
       if (saved.categories) setCategories(saved.categories);
       if (saved.transactions) setTransactions(saved.transactions);
@@ -7407,19 +7987,51 @@ export default function MaverickOS() {
     clearState();
   }, []);
 
+  // Handle onboarding completion — apply wizard data, clear sample data
+  const handleOnboardingComplete = useCallback((data) => {
+    // Start fresh — clear sample data
+    setCategories(INITIAL_CATEGORIES);
+    setTransactions([]);
+    setPaidDates(new Set());
+    setAssets([]);
+    setPaycheckStreams([]);
+    setCustomItems({});
+    setMonthlyRollovers({});
+    setBudgetRollovers({});
+    setBudgetTargets({});
+    setRecurringTransactions([]);
+
+    // Apply wizard entries
+    setIncome(data.income.length > 0 ? data.income : []);
+    setBillTemplates(data.bills.length > 0 ? data.bills : []);
+    setDebts(data.debts.length > 0 ? data.debts : []);
+    setSavingsGoals(data.goals.length > 0 ? data.goals : []);
+
+    // Apply settings
+    setSettings((s) => ({
+      ...s,
+      householdName: data.householdName,
+      theme: data.theme,
+      colorTheme: data.colorTheme,
+      onboardingComplete: true,
+    }));
+
+    setShowOnboarding(false);
+  }, []);
+
+  // Get active color theme and mode
+  const activeTheme = COLOR_THEMES[settings.colorTheme] || COLOR_THEMES.blue_gold;
+  const isDark = settings.theme !== "light";
+  const themeVars = isDark ? activeTheme.dark : activeTheme.light;
+
+  // Show onboarding wizard for first-time users
+  if (showOnboarding) {
+    return <OnboardingWizard onComplete={handleOnboardingComplete} />;
+  }
+
   return (
     <div style={{
-      "--bg": "#0a0e17", "--card": "#111827", "--surface": "#0d1220", "--sidebar": "#0b0f1a",
-      "--border": "#1e2a3f", "--border-hover": "#2d3f5a", "--border-subtle": "#162032",
-      "--track": "#162032",
-      "--nav-active": "#152238", "--nav-hover": "#111d30",
-      "--text-primary": "#e8ecf4", "--text-secondary": "#8fa3c0", "--text-muted": "#5a7194",
-      "--icon-bg": "#152238",
-      "--green": "#34d399", "--green-bg": "#34d39918",
-      "--amber": "#f0c644", "--amber-bg": "#f0c64418",
-      "--red": "#f87171", "--red-bg": "#f8717118",
-      "--accent": "#3b82f6",
-      "--shadow": "rgba(0,0,0,0.2)", "--shadow-heavy": "rgba(0,0,0,0.5)",
+      ...themeVars,
       fontFamily: "'DM Sans', 'SF Pro Display', -apple-system, sans-serif",
       background: "var(--bg)", color: "var(--text-primary)",
       display: "flex", minHeight: "100vh", boxSizing: "border-box",
@@ -7503,7 +8115,8 @@ export default function MaverickOS() {
           )}
           {page === "settings" && (
             <SettingsPage settings={settings} setSettings={setSettings}
-              onExport={handleExport} onImport={handleImport} onReset={handleReset} />
+              onExport={handleExport} onImport={handleImport} onReset={handleReset}
+              onRestartWizard={() => { clearState(); setShowOnboarding(true); }} />
           )}
         </div>
       </main>
