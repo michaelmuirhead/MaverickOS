@@ -34,7 +34,23 @@ const DEFAULT_SETTINGS = {
   householdName: "My Household",
   theme: "dark",
   startDayOfMonth: 1,
+  // Pages visibility — toggle off pages you don't use
+  hiddenPages: [],
+  // Dashboard widget configuration — order and visibility
+  dashboardWidgets: ["today", "networth", "metrics", "income", "spending", "bills", "savings", "debt"],
 };
+
+// All possible dashboard widgets
+const DASHBOARD_WIDGETS = [
+  { id: "today", label: "Today's Snapshot" },
+  { id: "networth", label: "Net Worth" },
+  { id: "metrics", label: "Income / Expenses / Balance" },
+  { id: "income", label: "Income Sources" },
+  { id: "spending", label: "Top Spending" },
+  { id: "bills", label: "Upcoming Bills" },
+  { id: "savings", label: "Savings Goals" },
+  { id: "debt", label: "Debt Summary" },
+];
 
 // ─────────────────────────────────────────────
 // DATA LAYER — Replace with API/DB calls later
@@ -95,6 +111,9 @@ const INITIAL_PAYCHECK_STREAMS = [
 
 // Custom line items added manually to specific paychecks — keyed by "streamId-YYYY-MM-DD"
 const INITIAL_CUSTOM_ITEMS = {};
+
+// Budget category rollovers — keyed by "YYYY-MM" with category overrides
+const INITIAL_BUDGET_ROLLOVERS = {};
 
 // Bill templates — recurring bills use anchorDate + frequency
 // Non-recurring bills use anchorDate as their one-time due date
@@ -574,8 +593,9 @@ function MobileNav({ activePage, onNavigate, onMore }) {
   );
 }
 
-function MobileMoreMenu({ activePage, onNavigate, onClose }) {
-  const allPages = NAV_ITEMS.filter((item) => !MOBILE_NAV_ITEMS.find((m) => m.id === item.id));
+function MobileMoreMenu({ activePage, onNavigate, onClose, hiddenPages = [] }) {
+  const allPages = NAV_ITEMS.filter((item) => !MOBILE_NAV_ITEMS.find((m) => m.id === item.id))
+    .filter((item) => item.id === "settings" || !hiddenPages.includes(item.id));
   return (
     <div onClick={onClose} style={{
       position: "fixed", inset: 0, zIndex: 200,
@@ -644,6 +664,86 @@ function ResponsiveStyles() {
         .maverick-content h1 { font-size: 20px !important; }
       }
     `}</style>
+  );
+}
+
+// ─────────────────────────────────────────────
+// FLOATING ACTION BUTTON (Quick Add)
+// ─────────────────────────────────────────────
+
+function FloatingActionButton({ categories, onAddTransaction }) {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ categoryId: "", description: "", amount: "", date: new Date().toISOString().split("T")[0] });
+  const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const canSubmit = form.categoryId && form.description.trim() && parseFloat(form.amount) > 0;
+
+  const reset = () => { setForm({ categoryId: categories[0]?.id || "", description: "", amount: "", date: new Date().toISOString().split("T")[0] }); };
+
+  return (
+    <>
+      {/* FAB Button */}
+      <button onClick={() => { reset(); setOpen(true); }}
+        style={{
+          position: "fixed", bottom: 90, right: 20, zIndex: 90,
+          width: 56, height: 56, borderRadius: 28, border: "none",
+          background: "var(--accent)", color: "#fff", cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          boxShadow: "0 4px 20px rgba(99,102,241,0.4)",
+          transition: "transform 0.2s, box-shadow 0.2s",
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.1)"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+      </button>
+
+      {/* Quick Add Sheet */}
+      {open && (
+        <div onClick={() => setOpen(false)} style={{
+          position: "fixed", inset: 0, zIndex: 150,
+          background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)",
+          display: "flex", alignItems: "flex-end", justifyContent: "center",
+        }}>
+          <div onClick={(e) => e.stopPropagation()} style={{
+            background: "var(--card)", borderRadius: "20px 20px 0 0",
+            width: "100%", maxWidth: 500, border: "1px solid var(--border)", borderBottom: "none",
+            paddingBottom: "env(safe-area-inset-bottom, 16px)",
+          }}>
+            <div style={{ display: "flex", justifyContent: "center", padding: "12px 0 4px" }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: "var(--border-hover)" }} />
+            </div>
+            <div style={{ padding: "8px 20px 4px" }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-primary)" }}>Quick Add Transaction</h3>
+            </div>
+            <div style={{ padding: "12px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
+              <select value={form.categoryId} onChange={(e) => update("categoryId", e.target.value)} style={{ ...INPUT_STYLE, cursor: "pointer" }}>
+                <option value="">Select category...</option>
+                {categories.map((c) => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+              </select>
+              <input value={form.description} onChange={(e) => update("description", e.target.value)} placeholder="Description" style={INPUT_STYLE} />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <input type="number" step="0.01" min="0" value={form.amount} onChange={(e) => update("amount", e.target.value)} placeholder="Amount" style={INPUT_STYLE} />
+                <input type="date" value={form.date} onChange={(e) => update("date", e.target.value)} style={INPUT_STYLE} />
+              </div>
+            </div>
+            <div style={{ padding: "8px 20px 16px", display: "flex", gap: 10 }}>
+              <button onClick={() => setOpen(false)} style={{ flex: 1, padding: "12px", borderRadius: 10, border: "1px solid var(--border)", background: "transparent", color: "var(--text-secondary)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+              <button onClick={() => {
+                if (canSubmit) {
+                  onAddTransaction({ id: nextId(), categoryId: form.categoryId, description: form.description.trim(), amount: parseFloat(form.amount), date: form.date });
+                  setOpen(false);
+                }
+              }} disabled={!canSubmit}
+                style={{ flex: 1, padding: "12px", borderRadius: 10, border: "none", background: canSubmit ? "var(--accent)" : "var(--border)", color: canSubmit ? "#fff" : "var(--text-muted)", fontSize: 14, fontWeight: 700, cursor: canSubmit ? "pointer" : "not-allowed" }}>
+                Add
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -724,7 +824,8 @@ const NAV_ITEMS = [
   )},
 ];
 
-function Sidebar({ activePage, onNavigate, collapsed, onToggle }) {
+function Sidebar({ activePage, onNavigate, collapsed, onToggle, hiddenPages = [] }) {
+  const visibleItems = NAV_ITEMS.filter((item) => item.id === "dashboard" || item.id === "settings" || !hiddenPages.includes(item.id));
   return (
     <div style={{
       width: collapsed ? 64 : 200, minWidth: collapsed ? 64 : 200,
@@ -747,7 +848,7 @@ function Sidebar({ activePage, onNavigate, collapsed, onToggle }) {
         {!collapsed && <span style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", whiteSpace: "nowrap" }}>MaverickOS</span>}
       </div>
       <div style={{ padding: "12px 8px", flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
-        {NAV_ITEMS.map((item) => {
+        {visibleItems.map((item) => {
           const active = activePage === item.id;
           return (
             <button key={item.id} onClick={() => onNavigate(item.id)}
@@ -797,7 +898,7 @@ function Sidebar({ activePage, onNavigate, collapsed, onToggle }) {
 // DASHBOARD PAGE
 // ─────────────────────────────────────────────
 
-function DashboardPage({ categories, transactions, income, billTemplates, paidDates, savingsGoals, debts, assets }) {
+function DashboardPage({ categories, transactions, income, billTemplates, paidDates, savingsGoals, debts, assets, settings }) {
   const totalIncome = income.reduce((s, i) => s + i.amount, 0);
   const totalExpenses = transactions.reduce((s, t) => s + t.amount, 0);
   const balance = totalIncome - totalExpenses;
@@ -814,156 +915,216 @@ function DashboardPage({ categories, transactions, income, billTemplates, paidDa
     .sort((a, b) => b.spent - a.spent)
     .slice(0, 5);
 
+  // Today's data
+  const todayStr = new Date().toISOString().split("T")[0];
+  const todayTx = transactions.filter((t) => t.date === todayStr);
+  const todaySpent = todayTx.reduce((s, t) => s + t.amount, 0);
+  const todayBills = useMemo(() => {
+    const now = new Date();
+    return generateBillInstances(billTemplates, now.getFullYear(), now.getMonth())
+      .filter((b) => b.instanceDate === todayStr);
+  }, [billTemplates, todayStr]);
+  const todayBillsDue = todayBills.filter((b) => !paidDates.has(b.instanceKey));
+  const nextBill = upcomingBills[0];
+
+  const widgets = settings?.dashboardWidgets || DEFAULT_SETTINGS.dashboardWidgets;
+  const isVisible = (id) => widgets.includes(id);
+
   return (
     <div>
       <div style={{ marginBottom: 28 }}>
-        <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em" }}>Dashboard</h1>
-        <p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--text-muted)" }}>March 2026 — Financial Overview</p>
+        <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em" }}>{settings?.householdName || "Dashboard"}</h1>
+        <p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--text-muted)" }}>
+          {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+        </p>
       </div>
+
+      {/* Today's Snapshot */}
+      {isVisible("today") && (
+        <Card style={{ marginBottom: 16 }}>
+          <div style={{ padding: "16px 20px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>Today</span>
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
+              <div style={{ padding: "10px 14px", borderRadius: 10, background: "var(--surface)", border: "1px solid var(--border)" }}>
+                <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 3 }}>Spent Today</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: todaySpent > 0 ? "var(--red)" : "var(--green)", fontVariantNumeric: "tabular-nums" }}>{fmt(todaySpent)}</div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{todayTx.length} transaction{todayTx.length !== 1 ? "s" : ""}</div>
+              </div>
+              <div style={{ padding: "10px 14px", borderRadius: 10, background: "var(--surface)", border: "1px solid var(--border)" }}>
+                <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 3 }}>Bills Due Today</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: todayBillsDue.length > 0 ? "var(--amber)" : "var(--green)", fontVariantNumeric: "tabular-nums" }}>{todayBillsDue.length}</div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{todayBillsDue.length > 0 ? fmt(todayBillsDue.reduce((s, b) => s + b.amount, 0)) + " due" : "All clear"}</div>
+              </div>
+              <div style={{ padding: "10px 14px", borderRadius: 10, background: "var(--surface)", border: "1px solid var(--border)" }}>
+                <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 3 }}>Next Bill</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{nextBill ? nextBill.name : "None"}</div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{nextBill ? `${fmt(nextBill.amount)} · ${new Date(nextBill.instanceDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}</div>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Net Worth banner */}
-      <Card style={{ marginBottom: 16 }}>
-        <div style={{ padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 4 }}>Net Worth</div>
-            <div style={{ fontSize: 32, fontWeight: 700, color: netWorth >= 0 ? "var(--green)" : "var(--red)", fontVariantNumeric: "tabular-nums" }}>{fmt(netWorth)}</div>
-          </div>
-          <div style={{ display: "flex", gap: 24 }}>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 2 }}>Assets</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: "var(--green)", fontVariantNumeric: "tabular-nums" }}>{fmtCompact(totalAssets)}</div>
+      {isVisible("networth") && (
+        <Card style={{ marginBottom: 16 }}>
+          <div style={{ padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 4 }}>Net Worth</div>
+              <div style={{ fontSize: 32, fontWeight: 700, color: netWorth >= 0 ? "var(--green)" : "var(--red)", fontVariantNumeric: "tabular-nums" }}>{fmt(netWorth)}</div>
             </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 2 }}>Liabilities</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: "var(--red)", fontVariantNumeric: "tabular-nums" }}>{fmtCompact(totalDebt)}</div>
+            <div style={{ display: "flex", gap: 24 }}>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 2 }}>Assets</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "var(--green)", fontVariantNumeric: "tabular-nums" }}>{fmtCompact(totalAssets)}</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 2 }}>Liabilities</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "var(--red)", fontVariantNumeric: "tabular-nums" }}>{fmtCompact(totalDebt)}</div>
+              </div>
             </div>
           </div>
-        </div>
-        <div style={{ padding: "0 20px 16px" }}>
-          <div style={{ position: "relative", height: 10, borderRadius: 5, background: "var(--red)", overflow: "hidden" }}>
-            <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: `${totalAssets > 0 ? Math.min((totalAssets / (totalAssets + totalDebt)) * 100, 100) : 0}%`, background: "var(--green)", borderRadius: 5, transition: "width 0.6s" }} />
+          <div style={{ padding: "0 20px 16px" }}>
+            <div style={{ position: "relative", height: 10, borderRadius: 5, background: "var(--red)", overflow: "hidden" }}>
+              <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: `${totalAssets > 0 ? Math.min((totalAssets / (totalAssets + totalDebt)) * 100, 100) : 0}%`, background: "var(--green)", borderRadius: 5, transition: "width 0.6s" }} />
+            </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 24 }}>
-        <MetricBox label="Income" value={fmt(totalIncome)} sub={`${income.length} source${income.length !== 1 ? "s" : ""}`} accent="var(--green)" />
-        <MetricBox label="Expenses" value={fmt(totalExpenses)} sub={`${pct(totalExpenses, totalIncome).toFixed(0)}% of income`} accent="var(--red)" />
-        <MetricBox label="Balance" value={fmt(Math.abs(balance))} sub={balance >= 0 ? "net positive" : "net negative"} accent={balance >= 0 ? "var(--green)" : "var(--red)"} />
-        <MetricBox label="Total Debt" value={fmtCompact(totalDebt)} sub={`${fmt(totalMinPayments)}/mo minimum`} accent="var(--amber)" />
-      </div>
+      {isVisible("metrics") && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 24 }}>
+          <MetricBox label="Income" value={fmt(totalIncome)} sub={`${income.length} source${income.length !== 1 ? "s" : ""}`} accent="var(--green)" />
+          <MetricBox label="Expenses" value={fmt(totalExpenses)} sub={`${pct(totalExpenses, totalIncome).toFixed(0)}% of income`} accent="var(--red)" />
+          <MetricBox label="Balance" value={fmt(Math.abs(balance))} sub={balance >= 0 ? "net positive" : "net negative"} accent={balance >= 0 ? "var(--green)" : "var(--red)"} />
+          <MetricBox label="Total Debt" value={fmtCompact(totalDebt)} sub={`${fmt(totalMinPayments)}/mo minimum`} accent="var(--amber)" />
+        </div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
-        <Card>
-          <CardHeader title="Income" />
-          <div style={{ padding: "0 20px 16px" }}>
-            {income.map((inc) => (
-              <div key={inc.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid var(--border-subtle)" }}>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>{inc.source}</div>
-                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 1 }}>
-                    {new Date(inc.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                    {inc.recurring && <span style={{ marginLeft: 6, color: "var(--accent)", fontWeight: 600 }}>Recurring</span>}
+        {isVisible("income") && (
+          <Card>
+            <CardHeader title="Income" />
+            <div style={{ padding: "0 20px 16px" }}>
+              {income.map((inc) => (
+                <div key={inc.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>{inc.source}</div>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 1 }}>
+                      {new Date(inc.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      {inc.recurring && <span style={{ marginLeft: 6, color: "var(--accent)", fontWeight: 600 }}>Recurring</span>}
+                    </div>
                   </div>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: "var(--green)", fontVariantNumeric: "tabular-nums" }}>+{fmt(inc.amount)}</span>
                 </div>
-                <span style={{ fontSize: 15, fontWeight: 700, color: "var(--green)", fontVariantNumeric: "tabular-nums" }}>+{fmt(inc.amount)}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
+              ))}
+            </div>
+          </Card>
+        )}
 
-        <Card>
-          <CardHeader title="Top Spending" />
-          <div style={{ padding: "0 20px 16px" }}>
-            {topSpendCategories.map((c) => (
-              <div key={c.id} style={{ padding: "8px 0", borderBottom: "1px solid var(--border-subtle)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 14 }}>{c.icon}</span>
-                    <span style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>{c.name}</span>
+        {isVisible("spending") && (
+          <Card>
+            <CardHeader title="Top Spending" />
+            <div style={{ padding: "0 20px 16px" }}>
+              {topSpendCategories.map((c) => (
+                <div key={c.id} style={{ padding: "8px 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 14 }}>{c.icon}</span>
+                      <span style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>{c.name}</span>
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", fontVariantNumeric: "tabular-nums" }}>
+                      {fmt(c.spent)} <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>/ {fmt(c.limit)}</span>
+                    </span>
                   </div>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", fontVariantNumeric: "tabular-nums" }}>
-                    {fmt(c.spent)} <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>/ {fmt(c.limit)}</span>
-                  </span>
+                  <ProgressBar value={c.spent} max={c.limit} height={5} />
                 </div>
-                <ProgressBar value={c.spent} max={c.limit} height={5} />
-              </div>
-            ))}
-          </div>
-        </Card>
+              ))}
+            </div>
+          </Card>
+        )}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        <Card>
-          <CardHeader title="Upcoming Bills" action={<span style={{ fontSize: 13, fontWeight: 600, color: "var(--amber)", fontVariantNumeric: "tabular-nums" }}>{fmt(upcomingTotal)}</span>} />
-          <div style={{ padding: "0 20px 16px" }}>
-            {upcomingBills.slice(0, 8).map((bill) => {
-              const due = new Date(bill.instanceDate + "T00:00:00");
-              const daysUntil = Math.ceil((due - new Date()) / 86400000);
-              const urgent = daysUntil <= 7 && daysUntil >= 0;
-              return (
-                <div key={bill.instanceKey} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid var(--border-subtle)" }}>
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>{bill.name}</span>
-                      {bill.recurring && <FrequencyBadge frequency={bill.frequency} />}
+        {isVisible("bills") && (
+          <Card>
+            <CardHeader title="Upcoming Bills" action={<span style={{ fontSize: 13, fontWeight: 600, color: "var(--amber)", fontVariantNumeric: "tabular-nums" }}>{fmt(upcomingTotal)}</span>} />
+            <div style={{ padding: "0 20px 16px" }}>
+              {upcomingBills.slice(0, 8).map((bill) => {
+                const due = new Date(bill.instanceDate + "T00:00:00");
+                const daysUntil = Math.ceil((due - new Date()) / 86400000);
+                const urgent = daysUntil <= 7 && daysUntil >= 0;
+                return (
+                  <div key={bill.instanceKey} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>{bill.name}</span>
+                        {bill.recurring && <FrequencyBadge frequency={bill.frequency} />}
+                      </div>
+                      <div style={{ fontSize: 12, color: urgent ? "var(--amber)" : "var(--text-muted)", fontWeight: urgent ? 600 : 400, marginTop: 1 }}>
+                        Due {due.toLocaleDateString("en-US", { month: "short", day: "numeric" })}{urgent && ` · ${daysUntil}d`}
+                      </div>
                     </div>
-                    <div style={{ fontSize: 12, color: urgent ? "var(--amber)" : "var(--text-muted)", fontWeight: urgent ? 600 : 400, marginTop: 1 }}>
-                      Due {due.toLocaleDateString("en-US", { month: "short", day: "numeric" })}{urgent && ` · ${daysUntil}d`}
-                    </div>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", fontVariantNumeric: "tabular-nums" }}>{fmt(bill.amount)}</span>
                   </div>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", fontVariantNumeric: "tabular-nums" }}>{fmt(bill.amount)}</span>
-                </div>
-              );
-            })}
-            {upcomingBills.length === 0 && <div style={{ padding: "16px 0", color: "var(--text-muted)", fontSize: 13, textAlign: "center" }}>All caught up!</div>}
-          </div>
-        </Card>
+                );
+              })}
+              {upcomingBills.length === 0 && <div style={{ padding: "16px 0", color: "var(--text-muted)", fontSize: 13, textAlign: "center" }}>All caught up!</div>}
+            </div>
+          </Card>
+        )}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <Card>
-            <CardHeader title="Savings Goals" />
-            <div style={{ padding: "0 20px 16px" }}>
-              {savingsGoals.map((goal) => (
-                <div key={goal.id} style={{ padding: "8px 0", borderBottom: "1px solid var(--border-subtle)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 15 }}>{goal.icon}</span>
-                      <span style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>{goal.name}</span>
+          {isVisible("savings") && (
+            <Card>
+              <CardHeader title="Savings Goals" />
+              <div style={{ padding: "0 20px 16px" }}>
+                {savingsGoals.map((goal) => (
+                  <div key={goal.id} style={{ padding: "8px 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 15 }}>{goal.icon}</span>
+                        <span style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>{goal.name}</span>
+                      </div>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: goal.color || "var(--accent)", fontVariantNumeric: "tabular-nums" }}>{pct(goal.current, goal.target).toFixed(0)}%</span>
                     </div>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: goal.color || "var(--accent)", fontVariantNumeric: "tabular-nums" }}>{pct(goal.current, goal.target).toFixed(0)}%</span>
-                  </div>
-                  <ProgressBar value={goal.current} max={goal.target} color={goal.current >= goal.target ? "var(--green)" : goal.color || "var(--accent)"} height={5} />
-                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-                    <span style={{ fontSize: 11, color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>{fmt(goal.current)}</span>
-                    <span style={{ fontSize: 11, color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>{fmt(goal.target)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          <Card>
-            <CardHeader title="Debt Summary" />
-            <div style={{ padding: "0 20px 16px" }}>
-              {debts.map((debt) => (
-                <div key={debt.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid var(--border-subtle)" }}>
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 14 }}>{debt.icon}</span>
-                      <span style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>{debt.name}</span>
+                    <ProgressBar value={goal.current} max={goal.target} color={goal.current >= goal.target ? "var(--green)" : goal.color || "var(--accent)"} height={5} />
+                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+                      <span style={{ fontSize: 11, color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>{fmt(goal.current)}</span>
+                      <span style={{ fontSize: 11, color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>{fmt(goal.target)}</span>
                     </div>
-                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2, paddingLeft: 26 }}>{debt.apr}% APR · {fmt(debt.minPayment)}/mo</div>
                   </div>
-                  <span style={{ fontSize: 15, fontWeight: 700, color: "var(--red)", fontVariantNumeric: "tabular-nums" }}>{fmt(debt.balance)}</span>
-                </div>
-              ))}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0 4px", marginTop: 4 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Total Owed</span>
-                <span style={{ fontSize: 17, fontWeight: 700, color: "var(--text-primary)", fontVariantNumeric: "tabular-nums" }}>{fmt(totalDebt)}</span>
+                ))}
               </div>
-            </div>
-          </Card>
+            </Card>
+          )}
+
+          {isVisible("debt") && (
+            <Card>
+              <CardHeader title="Debt Summary" />
+              <div style={{ padding: "0 20px 16px" }}>
+                {debts.map((debt) => (
+                  <div key={debt.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 14 }}>{debt.icon}</span>
+                        <span style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>{debt.name}</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2, paddingLeft: 26 }}>{debt.apr}% APR · {fmt(debt.minPayment)}/mo</div>
+                    </div>
+                    <span style={{ fontSize: 15, fontWeight: 700, color: "var(--red)", fontVariantNumeric: "tabular-nums" }}>{fmt(debt.balance)}</span>
+                  </div>
+                ))}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0 4px", marginTop: 4 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Total Owed</span>
+                  <span style={{ fontSize: 17, fontWeight: 700, color: "var(--text-primary)", fontVariantNumeric: "tabular-nums" }}>{fmt(totalDebt)}</span>
+                </div>
+              </div>
+            </Card>
+          )}
         </div>
       </div>
     </div>
@@ -3980,6 +4141,8 @@ function TransactionsPage({ transactions, setTransactions, categories }) {
   const [sortField, setSortField] = useState("date");
   const [sortDir, setSortDir] = useState("desc");
   const [showAdd, setShowAdd] = useState(false);
+  const [selected, setSelected] = useState(new Set());
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
 
   const catMap = {};
   categories.forEach((c) => { catMap[c.id] = c; });
@@ -4000,13 +4163,38 @@ function TransactionsPage({ transactions, setTransactions, categories }) {
   }, [transactions, search, filterCat, sortField, sortDir]);
 
   const totalFiltered = filtered.reduce((s, t) => s + t.amount, 0);
+  const selectedTotal = filtered.filter((t) => selected.has(t.id)).reduce((s, t) => s + t.amount, 0);
+  const hasSelection = selected.size > 0;
+  const allSelected = filtered.length > 0 && filtered.every((t) => selected.has(t.id));
 
   const toggleSort = (field) => {
     if (sortField === field) setSortDir((d) => d === "desc" ? "asc" : "desc");
     else { setSortField(field); setSortDir("desc"); }
   };
 
-  const deleteTransaction = (id) => setTransactions((prev) => prev.filter((t) => t.id !== id));
+  const toggleSelect = (id) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    if (allSelected) setSelected(new Set());
+    else setSelected(new Set(filtered.map((t) => t.id)));
+  };
+
+  const deleteSelected = () => {
+    setTransactions((prev) => prev.filter((t) => !selected.has(t.id)));
+    setSelected(new Set());
+  };
+
+  const deleteAll = () => {
+    setTransactions([]);
+    setSelected(new Set());
+    setConfirmDeleteAll(false);
+  };
 
   return (
     <div>
@@ -4015,8 +4203,60 @@ function TransactionsPage({ transactions, setTransactions, categories }) {
           <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em" }}>Transactions</h1>
           <p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--text-muted)" }}>{filtered.length} transactions · {fmt(totalFiltered)} total</p>
         </div>
-        <button onClick={() => setShowAdd(true)} style={{ padding: "10px 18px", borderRadius: 10, border: "none", background: "var(--accent)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>+ Add Transaction</button>
+        <div style={{ display: "flex", gap: 8 }}>
+          {transactions.length > 0 && (
+            confirmDeleteAll ? (
+              <div style={{ display: "flex", gap: 6 }}>
+                <button onClick={deleteAll} style={{ padding: "10px 18px", borderRadius: 10, border: "none", background: "var(--red)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                  Yes, Delete All ({transactions.length})
+                </button>
+                <button onClick={() => setConfirmDeleteAll(false)} style={{ padding: "10px 18px", borderRadius: 10, border: "1px solid var(--border)", background: "transparent", color: "var(--text-secondary)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => setConfirmDeleteAll(true)} style={{ padding: "10px 18px", borderRadius: 10, border: "1px solid var(--red)44", background: "transparent", color: "var(--red)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                Delete All
+              </button>
+            )
+          )}
+          <button onClick={() => setShowAdd(true)} style={{ padding: "10px 18px", borderRadius: 10, border: "none", background: "var(--accent)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>+ Add Transaction</button>
+        </div>
       </div>
+
+      {/* Selection action bar */}
+      {hasSelection && (
+        <div style={{
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          padding: "10px 16px", marginBottom: 12, borderRadius: 10,
+          background: "var(--accent)" + "18", border: "1px solid var(--accent)" + "44",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--accent)" }}>
+              {selected.size} selected
+            </span>
+            <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
+              {fmt(selectedTotal)}
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setSelected(new Set())} style={{
+              padding: "6px 14px", borderRadius: 8, border: "1px solid var(--border)",
+              background: "transparent", color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer",
+            }}>Deselect</button>
+            <button onClick={deleteSelected} style={{
+              padding: "6px 14px", borderRadius: 8, border: "none",
+              background: "var(--red)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 5,
+            }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+              </svg>
+              Delete ({selected.size})
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Search + Filters */}
       <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
@@ -4033,43 +4273,88 @@ function TransactionsPage({ transactions, setTransactions, categories }) {
         </select>
       </div>
 
-      {/* Table */}
+      {/* Transaction list */}
       <Card>
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                <th onClick={() => toggleSort("date")} style={{ padding: "12px 20px", textAlign: "left", fontWeight: 600, color: "var(--text-muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", cursor: "pointer", userSelect: "none" }}>
-                  Date {sortField === "date" && (sortDir === "desc" ? "↓" : "↑")}
-                </th>
-                <th style={{ padding: "12px 16px", textAlign: "left", fontWeight: 600, color: "var(--text-muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Description</th>
-                <th style={{ padding: "12px 16px", textAlign: "left", fontWeight: 600, color: "var(--text-muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Category</th>
-                <th onClick={() => toggleSort("amount")} style={{ padding: "12px 20px", textAlign: "right", fontWeight: 600, color: "var(--text-muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", cursor: "pointer", userSelect: "none" }}>
-                  Amount {sortField === "amount" && (sortDir === "desc" ? "↓" : "↑")}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((t) => {
-                const cat = catMap[t.categoryId];
-                return (
-                  <SwipeToDelete key={t.id} onDelete={() => deleteTransaction(t.id)}>
-                    <tr style={{ borderBottom: "1px solid var(--border-subtle)", display: "table-row" }}>
-                      <td style={{ padding: "12px 20px", fontSize: 13, color: "var(--text-muted)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
-                        {new Date(t.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                      </td>
-                      <td style={{ padding: "12px 16px", fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>{t.description}</td>
-                      <td style={{ padding: "12px 16px" }}>
-                        {cat && <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-muted)" }}>{cat.icon} {cat.name}</span>}
-                      </td>
-                      <td style={{ padding: "12px 20px", fontSize: 14, fontWeight: 600, color: "var(--red)", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>-{fmt(t.amount)}</td>
-                    </tr>
-                  </SwipeToDelete>
-                );
-              })}
-            </tbody>
-          </table>
+        {/* Header row with select all */}
+        <div style={{
+          display: "grid", gridTemplateColumns: "40px 1fr auto",
+          padding: "10px 16px", borderBottom: "1px solid var(--border)",
+          alignItems: "center",
+        }}>
+          <div onClick={selectAll} style={{
+            width: 22, height: 22, borderRadius: 6, cursor: "pointer",
+            border: allSelected ? "none" : "2px solid var(--border-hover)",
+            background: allSelected ? "var(--accent)" : "transparent",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "all 0.15s",
+          }}>
+            {allSelected && (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            )}
+          </div>
+          <div style={{ display: "flex", gap: 16 }}>
+            <span onClick={() => toggleSort("date")} style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)", cursor: "pointer", userSelect: "none" }}>
+              Date {sortField === "date" && (sortDir === "desc" ? "↓" : "↑")}
+            </span>
+            <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>Description</span>
+          </div>
+          <span onClick={() => toggleSort("amount")} style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)", cursor: "pointer", userSelect: "none" }}>
+            Amount {sortField === "amount" && (sortDir === "desc" ? "↓" : "↑")}
+          </span>
         </div>
+
+        {/* Transaction rows */}
+        {filtered.map((t) => {
+          const cat = catMap[t.categoryId];
+          const isSelected = selected.has(t.id);
+          return (
+            <div key={t.id}
+              onClick={() => toggleSelect(t.id)}
+              style={{
+                display: "grid", gridTemplateColumns: "40px 1fr auto",
+                padding: "12px 16px", alignItems: "center",
+                borderBottom: "1px solid var(--border-subtle)",
+                background: isSelected ? "var(--accent)" + "0c" : "transparent",
+                cursor: "pointer", transition: "background 0.15s",
+                userSelect: "none",
+              }}
+              onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = "var(--nav-hover)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = isSelected ? "var(--accent)" + "0c" : "transparent"; }}
+            >
+              {/* Checkbox */}
+              <div style={{
+                width: 22, height: 22, borderRadius: 6,
+                border: isSelected ? "none" : "2px solid var(--border-hover)",
+                background: isSelected ? "var(--accent)" : "transparent",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                transition: "all 0.15s", flexShrink: 0,
+              }}>
+                {isSelected && (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                )}
+              </div>
+
+              {/* Info */}
+              <div style={{ minWidth: 0, paddingRight: 12 }}>
+                <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {t.description}
+                </div>
+                <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
+                  <span style={{ fontSize: 12, color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
+                    {new Date(t.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  </span>
+                  {cat && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{cat.icon} {cat.name}</span>}
+                </div>
+              </div>
+
+              {/* Amount */}
+              <span style={{ fontSize: 15, fontWeight: 600, color: "var(--red)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
+                -{fmt(t.amount)}
+              </span>
+            </div>
+          );
+        })}
+
         {filtered.length === 0 && (
           <div style={{ padding: "32px 20px", textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
             {search || filterCat !== "all" ? "No transactions match your filters" : "No transactions yet"}
@@ -4225,6 +4510,24 @@ function MonthlySummaryPage({ categories, transactions, income, billTemplates, p
 
 function SettingsPage({ settings, setSettings, onExport, onImport, onReset }) {
   const fileRef = useRef(null);
+  const hiddenPages = settings.hiddenPages || [];
+  const dashWidgets = settings.dashboardWidgets || DEFAULT_SETTINGS.dashboardWidgets;
+
+  const togglePage = (pageId) => {
+    setSettings((s) => {
+      const hidden = s.hiddenPages || [];
+      return { ...s, hiddenPages: hidden.includes(pageId) ? hidden.filter((p) => p !== pageId) : [...hidden, pageId] };
+    });
+  };
+
+  const toggleWidget = (widgetId) => {
+    setSettings((s) => {
+      const w = s.dashboardWidgets || DEFAULT_SETTINGS.dashboardWidgets;
+      return { ...s, dashboardWidgets: w.includes(widgetId) ? w.filter((id) => id !== widgetId) : [...w, widgetId] };
+    });
+  };
+
+  const toggleablePages = NAV_ITEMS.filter((p) => p.id !== "dashboard" && p.id !== "settings");
 
   return (
     <div>
@@ -4237,10 +4540,72 @@ function SettingsPage({ settings, setSettings, onExport, onImport, onReset }) {
       <Card style={{ marginBottom: 16 }}>
         <CardHeader title="Household" />
         <div style={{ padding: "0 20px 20px" }}>
-          <div style={{ marginBottom: 14 }}>
-            <FieldLabel>Household Name</FieldLabel>
-            <input value={settings.householdName} onChange={(e) => setSettings((s) => ({ ...s, householdName: e.target.value }))} style={INPUT_STYLE} />
-          </div>
+          <FieldLabel>Household Name</FieldLabel>
+          <input value={settings.householdName} onChange={(e) => setSettings((s) => ({ ...s, householdName: e.target.value }))} style={INPUT_STYLE} />
+        </div>
+      </Card>
+
+      {/* Page Visibility */}
+      <Card style={{ marginBottom: 16 }}>
+        <CardHeader title="Pages" action={<span style={{ fontSize: 12, color: "var(--text-muted)" }}>Toggle pages on/off</span>} />
+        <div style={{ padding: "0 12px 12px" }}>
+          {toggleablePages.map((page) => {
+            const enabled = !hiddenPages.includes(page.id);
+            return (
+              <div key={page.id} onClick={() => togglePage(page.id)}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "10px 12px", borderRadius: 8, cursor: "pointer", marginBottom: 2,
+                  background: enabled ? "transparent" : "var(--surface)",
+                  opacity: enabled ? 1 : 0.5,
+                }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ display: "flex", color: enabled ? "var(--text-primary)" : "var(--text-muted)" }}>{page.icon}</span>
+                  <span style={{ fontSize: 14, fontWeight: 500, color: enabled ? "var(--text-primary)" : "var(--text-muted)" }}>{page.label}</span>
+                </div>
+                <div style={{
+                  width: 40, height: 22, borderRadius: 11, padding: 2,
+                  background: enabled ? "var(--green)" : "var(--track)",
+                  transition: "background 0.2s", display: "flex", alignItems: "center",
+                }}>
+                  <div style={{
+                    width: 18, height: 18, borderRadius: 9, background: "#fff",
+                    transition: "transform 0.2s", transform: enabled ? "translateX(18px)" : "translateX(0)",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                  }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      {/* Dashboard Widgets */}
+      <Card style={{ marginBottom: 16 }}>
+        <CardHeader title="Dashboard Widgets" action={<span style={{ fontSize: 12, color: "var(--text-muted)" }}>Choose what shows on Dashboard</span>} />
+        <div style={{ padding: "0 12px 12px" }}>
+          {DASHBOARD_WIDGETS.map((widget) => {
+            const enabled = dashWidgets.includes(widget.id);
+            return (
+              <div key={widget.id} onClick={() => toggleWidget(widget.id)}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "10px 12px", borderRadius: 8, cursor: "pointer", marginBottom: 2,
+                  opacity: enabled ? 1 : 0.5,
+                }}>
+                <span style={{ fontSize: 14, fontWeight: 500, color: enabled ? "var(--text-primary)" : "var(--text-muted)" }}>{widget.label}</span>
+                <div style={{
+                  width: 22, height: 22, borderRadius: 6,
+                  border: enabled ? "none" : "2px solid var(--border-hover)",
+                  background: enabled ? "var(--accent)" : "transparent",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  transition: "all 0.15s",
+                }}>
+                  {enabled && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </Card>
 
@@ -4278,9 +4643,7 @@ function SettingsPage({ settings, setSettings, onExport, onImport, onReset }) {
               e.target.value = "";
             }} />
           </div>
-          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-            Export saves all your budget data as a JSON file. Import replaces all current data with the file contents.
-          </div>
+          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Export saves all data as JSON. Import replaces all current data.</div>
         </div>
       </Card>
 
@@ -4691,6 +5054,7 @@ export default function MaverickOS() {
   const [paycheckStreams, setPaycheckStreams] = useState(INITIAL_PAYCHECK_STREAMS);
   const [customItems, setCustomItems] = useState(INITIAL_CUSTOM_ITEMS);
   const [monthlyRollovers, setMonthlyRollovers] = useState({});
+  const [budgetRollovers, setBudgetRollovers] = useState(INITIAL_BUDGET_ROLLOVERS);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
 
   // Load from localStorage on mount
@@ -4708,6 +5072,7 @@ export default function MaverickOS() {
       if (saved.paycheckStreams) setPaycheckStreams(saved.paycheckStreams);
       if (saved.customItems) setCustomItems(saved.customItems);
       if (saved.monthlyRollovers) setMonthlyRollovers(saved.monthlyRollovers);
+      if (saved.budgetRollovers) setBudgetRollovers(saved.budgetRollovers);
       if (saved.settings) setSettings(saved.settings);
     }
     setLoaded(true);
@@ -4716,18 +5081,18 @@ export default function MaverickOS() {
   // Save to localStorage whenever state changes (after initial load)
   useEffect(() => {
     if (!loaded) return;
-    saveState({ categories, transactions, income, billTemplates, paidDates, savingsGoals, debts, assets, paycheckStreams, customItems, monthlyRollovers, settings });
-  }, [loaded, categories, transactions, income, billTemplates, paidDates, savingsGoals, debts, assets, paycheckStreams, customItems, monthlyRollovers, settings]);
+    saveState({ categories, transactions, income, billTemplates, paidDates, savingsGoals, debts, assets, paycheckStreams, customItems, monthlyRollovers, budgetRollovers, settings });
+  }, [loaded, categories, transactions, income, billTemplates, paidDates, savingsGoals, debts, assets, paycheckStreams, customItems, monthlyRollovers, budgetRollovers, settings]);
 
   // Export all data as JSON download
   const handleExport = useCallback(() => {
-    const data = { categories, transactions, income, billTemplates, paidDates: [...paidDates], savingsGoals, debts, assets, paycheckStreams, customItems, monthlyRollovers, settings, exportDate: new Date().toISOString() };
+    const data = { categories, transactions, income, billTemplates, paidDates: [...paidDates], savingsGoals, debts, assets, paycheckStreams, customItems, monthlyRollovers, budgetRollovers, settings, exportDate: new Date().toISOString() };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url; a.download = `maverickos-backup-${new Date().toISOString().split("T")[0]}.json`;
     a.click(); URL.revokeObjectURL(url);
-  }, [categories, transactions, income, billTemplates, paidDates, savingsGoals, debts, assets, paycheckStreams, customItems, monthlyRollovers, settings]);
+  }, [categories, transactions, income, billTemplates, paidDates, savingsGoals, debts, assets, paycheckStreams, customItems, monthlyRollovers, budgetRollovers, settings]);
 
   // Import data from JSON string
   const handleImport = useCallback((jsonStr) => {
@@ -4744,6 +5109,7 @@ export default function MaverickOS() {
       if (data.paycheckStreams) setPaycheckStreams(data.paycheckStreams);
       if (data.customItems) setCustomItems(data.customItems);
       if (data.monthlyRollovers) setMonthlyRollovers(data.monthlyRollovers);
+      if (data.budgetRollovers) setBudgetRollovers(data.budgetRollovers);
       if (data.settings) setSettings(data.settings);
     } catch {}
   }, []);
@@ -4755,7 +5121,7 @@ export default function MaverickOS() {
     setPaidDates(INITIAL_PAID_DATES); setSavingsGoals(INITIAL_SAVINGS_GOALS);
     setDebts(INITIAL_DEBTS); setAssets(INITIAL_ASSETS);
     setPaycheckStreams(INITIAL_PAYCHECK_STREAMS); setCustomItems(INITIAL_CUSTOM_ITEMS);
-    setMonthlyRollovers({}); setSettings(DEFAULT_SETTINGS);
+    setMonthlyRollovers({}); setBudgetRollovers({}); setSettings(DEFAULT_SETTINGS);
     clearState();
   }, []);
 
@@ -4781,7 +5147,7 @@ export default function MaverickOS() {
       <ResponsiveStyles />
 
       {!isMobile && (
-        <Sidebar activePage={page} onNavigate={setPage} collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((c) => !c)} />
+        <Sidebar activePage={page} onNavigate={setPage} collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((c) => !c)} hiddenPages={settings.hiddenPages || []} />
       )}
 
       <main className="maverick-main" style={{
@@ -4793,7 +5159,7 @@ export default function MaverickOS() {
           {page === "dashboard" && (
             <DashboardPage categories={categories} transactions={transactions} income={income}
               billTemplates={billTemplates} paidDates={paidDates}
-              savingsGoals={savingsGoals} debts={debts} assets={assets} />
+              savingsGoals={savingsGoals} debts={debts} assets={assets} settings={settings} />
           )}
           {page === "budget" && (
             <BudgetPage categories={categories} transactions={transactions} setCategories={setCategories} setTransactions={setTransactions} income={income} />
@@ -4844,11 +5210,14 @@ export default function MaverickOS() {
         </div>
       </main>
 
+      {/* Floating Action Button — quick add transaction from any page */}
+      <FloatingActionButton categories={categories} onAddTransaction={(tx) => setTransactions((p) => [...p, tx])} />
+
       {isMobile && (
         <MobileNav activePage={page} onNavigate={setPage} onMore={() => setMobileMore(true)} />
       )}
       {isMobile && mobileMore && (
-        <MobileMoreMenu activePage={page} onNavigate={setPage} onClose={() => setMobileMore(false)} />
+        <MobileMoreMenu activePage={page} onNavigate={setPage} onClose={() => setMobileMore(false)} hiddenPages={settings.hiddenPages || []} />
       )}
     </div>
   );
