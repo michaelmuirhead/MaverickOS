@@ -7989,32 +7989,30 @@ export default function MaverickOS() {
 
   // Handle onboarding completion — apply wizard data, clear sample data
   const handleOnboardingComplete = useCallback((data) => {
-    // Start fresh — clear sample data
-    setCategories(INITIAL_CATEGORIES);
-    setTransactions([]);
-    setPaidDates(new Set());
-    setAssets([]);
-    setPaycheckStreams([]);
-    setCustomItems({});
-    setMonthlyRollovers({});
-    setBudgetRollovers({});
-    setBudgetTargets({});
-    setRecurringTransactions([]);
+    // Apply whatever the wizard sends — it handles both full setup and skip paths
+    if (data.categories) setCategories(data.categories);
+    if (data.transactions) setTransactions(data.transactions);
+    if (data.income) setIncome(data.income);
+    if (data.billTemplates) setBillTemplates(data.billTemplates);
+    if (data.paidDates) setPaidDates(data.paidDates instanceof Set ? data.paidDates : new Set());
+    if (data.savingsGoals) setSavingsGoals(data.savingsGoals);
+    if (data.debts) setDebts(data.debts);
+    if (data.assets) setAssets(data.assets);
 
-    // Apply wizard entries
-    setIncome(data.income.length > 0 ? data.income : []);
-    setBillTemplates(data.bills.length > 0 ? data.bills : []);
-    setDebts(data.debts.length > 0 ? data.debts : []);
-    setSavingsGoals(data.goals.length > 0 ? data.goals : []);
+    // For skip path — only settings is provided, keep sample data
+    if (data.settings) {
+      setSettings((s) => ({ ...s, ...data.settings }));
+    }
 
-    // Apply settings
-    setSettings((s) => ({
-      ...s,
-      householdName: data.householdName,
-      theme: data.theme,
-      colorTheme: data.colorTheme,
-      onboardingComplete: true,
-    }));
+    // Clear transient state for fresh start
+    if (data.transactions !== undefined) {
+      setPaycheckStreams([]);
+      setCustomItems({});
+      setMonthlyRollovers({});
+      setBudgetRollovers({});
+      setBudgetTargets({});
+      setRecurringTransactions([]);
+    }
 
     setShowOnboarding(false);
   }, []);
