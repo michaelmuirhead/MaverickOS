@@ -2538,10 +2538,15 @@ function generatePaycheckDates(stream, year, month) {
 
   switch (stream.frequency) {
     case "semimonthly": {
-      const first = new Date(year, month, 1);
-      const fifteenth = new Date(year, month, 15);
+      // Two paydays per month: anchor day and anchor day + 15 (or 1st & 15th if no anchor)
+      const anchorDay = anchor.getDate();
+      const secondDay = anchorDay <= 15 ? anchorDay + 15 : anchorDay - 15;
+      const day1 = Math.min(anchorDay, secondDay);
+      const day2 = Math.max(anchorDay, secondDay);
+      const first = new Date(year, month, Math.min(day1, monthEnd.getDate()));
+      const second = new Date(year, month, Math.min(day2, monthEnd.getDate()));
       if (first >= anchor) dates.push(first);
-      if (fifteenth >= anchor) dates.push(fifteenth);
+      if (second >= anchor && second.getTime() !== first.getTime()) dates.push(second);
       break;
     }
     case "biweekly": {
@@ -2587,13 +2592,16 @@ function formatShortDate(date) {
   return { month: months[date.getMonth()], day: date.getDate() };
 }
 
-function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplates, savingsGoals, paidDates, customItems, setCustomItems, monthlyRollovers, setMonthlyRollovers, income }) {
+function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplates, savingsGoals, paidDates, customItems, setCustomItems, monthlyRollovers, setMonthlyRollovers, income, settings, setSettings }) {
   const [viewDate, setViewDate] = useState(() => new Date());
   const [showAddStream, setShowAddStream] = useState(false);
   const [showAddItem, setShowAddItem] = useState(null);
   const [showAddIncome, setShowAddIncome] = useState(null);
   const [confirmingDelete, setConfirmingDelete] = useState(null);
-  const [useIncomeStreams, setUseIncomeStreams] = useState(true);
+
+  // Persist income stream toggle in settings
+  const useIncomeStreams = settings?.paycheckUseIncome !== false;
+  const toggleIncomeStreams = () => setSettings((s) => ({ ...s, paycheckUseIncome: !useIncomeStreams }));
 
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
@@ -2697,23 +2705,23 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
       const lines = [];
       // Income line
       const extraIncome = customIncome.reduce((s, i) => s + i.amount, 0);
-      lines.push({ type: "income", name: pc.streamName, amount: pc.amount, dateInfo: formatShortDate(pc.date), color: pc.streamColor, isIncome: true });
+      lines.push({ type: "income", name: pc.streamName, amount: pc.amount, dateInfo: formatShortDate(pc.date), color: pc.streamColor, isIncome: true, rawDate: pc.date });
       customIncome.forEach((ci) => {
-        lines.push({ type: "income", name: ci.name, amount: ci.amount, dateInfo: formatShortDate(pc.date), color: "var(--green)", isIncome: true, customId: ci.id });
+        lines.push({ type: "income", name: ci.name, amount: ci.amount, dateInfo: formatShortDate(pc.date), color: "var(--green)", isIncome: true, customId: ci.id, rawDate: pc.date });
       });
       // Bills
       bills.forEach((bill) => {
         const isPaid = paidDates.has(bill.instanceKey);
         const billDate = new Date(bill.instanceDate + "T00:00:00");
-        lines.push({ type: "bill", name: bill.name, amount: bill.amount, dateInfo: formatShortDate(billDate), isPaid, recurring: bill.recurring, frequency: bill.frequency });
+        lines.push({ type: "bill", name: bill.name, amount: bill.amount, dateInfo: formatShortDate(billDate), isPaid, recurring: bill.recurring, frequency: bill.frequency, rawDate: billDate });
       });
       // Savings
       savings.forEach((sg) => {
-        lines.push({ type: "savings", name: `${sg.icon} ${sg.name}`, amount: sg.amount, dateInfo: formatShortDate(pc.date), color: sg.color });
+        lines.push({ type: "savings", name: `${sg.icon} ${sg.name}`, amount: sg.amount, dateInfo: formatShortDate(pc.date), color: sg.color, rawDate: pc.date });
       });
       // Custom expenses
       customExpenses.forEach((ci) => {
-        lines.push({ type: "custom", name: ci.name, amount: ci.amount, dateInfo: formatShortDate(pc.date), customId: ci.id });
+        lines.push({ type: "custom", name: ci.name, amount: ci.amount, dateInfo: formatShortDate(pc.date), customId: ci.id, rawDate: pc.date });
       });
 
       // Calculate running balance starting from the carry-over buffer
@@ -2752,17 +2760,41 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
   };
 
   // Waterfall row component
-  const WaterfallRow = ({ line, paycheckKey, isLast }) => {
+  const WaterfallRow = ({ line, paycheckKey, isLast, isFirst, onMoveUp, onMoveDown }) => {
     const isIncome = line.isIncome;
     const canRemove = line.customId != null;
+    const isBill = line.type === "bill";
+    const isSavings = line.type === "savings";
+
+    const arrowBtn = (direction, onClick, disabled) => (
+      <button onClick={(e) => { e.stopPropagation(); if (!disabled) onClick(); }}
+        style={{
+          background: "none", border: "none", padding: "2px", cursor: disabled ? "default" : "pointer",
+          color: disabled ? "var(--border)" : "var(--text-muted)", display: "flex", alignItems: "center",
+          opacity: disabled ? 0.3 : 1, transition: "color 0.15s",
+        }}
+        onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.color = "var(--accent)"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = disabled ? "var(--border)" : "var(--text-muted)"; }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          {direction === "up" ? <polyline points="18 15 12 9 6 15"/> : <polyline points="6 9 12 15 18 9"/>}
+        </svg>
+      </button>
+    );
 
     return (
       <div style={{
-        display: "grid", gridTemplateColumns: "48px 1fr auto",
-        alignItems: "center", padding: "12px 20px",
+        display: "grid", gridTemplateColumns: "28px 48px 1fr auto",
+        alignItems: "center", padding: "10px 16px 10px 4px",
         borderBottom: isLast ? "none" : "1px solid var(--border-subtle)",
         background: isIncome ? "var(--green-bg)" : "transparent",
       }}>
+        {/* Reorder arrows */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
+          {arrowBtn("up", onMoveUp, isFirst)}
+          {arrowBtn("down", onMoveDown, isLast)}
+        </div>
+
         {/* Date column */}
         <div style={{ textAlign: "center", lineHeight: 1.2 }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>{line.dateInfo.month}</div>
@@ -2770,9 +2802,10 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
         </div>
 
         {/* Name column */}
-        <div style={{ paddingLeft: 14 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ paddingLeft: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             {isIncome && <span style={{ width: 8, height: 8, borderRadius: 2, background: line.color || "var(--green)" }} />}
+            {isSavings && <span style={{ width: 8, height: 8, borderRadius: 2, background: line.color || "var(--accent)" }} />}
             {line.isPaid && (
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
             )}
@@ -2781,6 +2814,9 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
               color: line.isPaid ? "var(--text-muted)" : "var(--text-primary)",
               textDecoration: line.isPaid ? "line-through" : "none",
             }}>{line.name}</span>
+            {isBill && line.recurring && line.frequency && (
+              <FrequencyBadge frequency={line.frequency} />
+            )}
             {canRemove && (
               <button onClick={() => removeCustomItem(paycheckKey, line.customId)}
                 style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: 0, fontSize: 16, lineHeight: 1 }}
@@ -2844,11 +2880,19 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
         <span>{riskLabels[riskLevel]} risk of overspending</span>
       </div>
 
+      {/* Summary metrics */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 20 }}>
+        <MetricBox label="Total Income" value={fmt(totalIncome)} sub={`${allPaychecks.length} paycheck${allPaychecks.length !== 1 ? "s" : ""}`} accent="var(--green)" />
+        <MetricBox label="Bills" value={fmt(paycheckSchedules.reduce((s, pc) => s + pc.lines.filter((l) => l.type === "bill").reduce((s2, l) => s2 + l.amount, 0), 0))} sub={`${monthBills.length} this month`} accent="var(--red)" />
+        <MetricBox label="Savings" value={fmt(savingsGoals.reduce((s, g) => s + g.monthlyContribution, 0))} sub={`${savingsGoals.filter((g) => g.monthlyContribution > 0).length} goals`} accent="var(--accent)" />
+        <MetricBox label="Remaining" value={fmt(totalRemaining)} sub={totalRemaining >= 0 ? "unallocated" : "over budget"} accent={riskColors[riskLevel]} />
+      </div>
+
       {/* Income streams legend */}
       <div style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <span style={{ fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>Income Streams</span>
-          <button onClick={() => setUseIncomeStreams((v) => !v)}
+          <button onClick={toggleIncomeStreams}
             style={{ fontSize: 11, fontWeight: 600, color: "var(--accent)", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
             {useIncomeStreams ? "Use manual streams" : "Pull from Income page"}
           </button>
@@ -2883,7 +2927,7 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
         </div>
       </div>
 
-      {/* Paycheck waterfall cards */}
+      {/* Unified Spending Schedule */}
       {paycheckSchedules.length === 0 && (
         <Card style={{ padding: "48px 20px", textAlign: "center" }}>
           <div style={{ fontSize: 15, color: "var(--text-muted)", marginBottom: 8 }}>No paychecks this month</div>
@@ -2891,78 +2935,146 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
         </Card>
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        {paycheckSchedules.map((pc) => (
-          <Card key={pc.key}>
-            {/* Spending Schedule header */}
+      {paycheckSchedules.length > 0 && (() => {
+        // Build a single unified timeline — paycheck waterfall order:
+        // Paycheck 1 income → expenses due before paycheck 2 → Paycheck 2 income → expenses → etc.
+        const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
+        const startBuffer = monthlyRollovers[monthKey] || 0;
+
+        // Flatten paycheckSchedules in order — each paycheck's lines are already sorted correctly
+        // (income first, then bills by amount, then savings, then custom)
+        const allLines = [];
+        let lineIdx = 0;
+        paycheckSchedules.forEach((pc) => {
+          pc.lines.forEach((line) => {
+            allLines.push({ ...line, paycheckKey: pc.key, streamColor: pc.streamColor, streamName: pc.streamName, lineId: lineIdx++ });
+          });
+        });
+
+        // Apply manual order overrides if stored
+        const orderKey = `order-${monthKey}`;
+        const savedOrder = customItems[orderKey];
+        if (savedOrder && Array.isArray(savedOrder)) {
+          const idxMap = {};
+          savedOrder.forEach((id, i) => { idxMap[id] = i; });
+          allLines.sort((a, b) => {
+            const posA = idxMap[a.lineId] !== undefined ? idxMap[a.lineId] : 9999;
+            const posB = idxMap[b.lineId] !== undefined ? idxMap[b.lineId] : 9999;
+            return posA - posB;
+          });
+        }
+
+        // Recalculate running balance across the unified timeline
+        let balance = startBuffer;
+        allLines.forEach((line) => {
+          if (line.isIncome) balance += line.amount;
+          else balance -= line.amount;
+          line.balance = balance;
+        });
+
+        const finalBalance = allLines.length > 0 ? allLines[allLines.length - 1].balance : startBuffer;
+
+        // Swap two lines and persist the new order
+        const swapLines = (idx, dir) => {
+          const targetIdx = idx + dir;
+          if (targetIdx < 0 || targetIdx >= allLines.length) return;
+          const newOrder = allLines.map((l) => l.lineId);
+          [newOrder[idx], newOrder[targetIdx]] = [newOrder[targetIdx], newOrder[idx]];
+          setCustomItems((prev) => ({ ...prev, [orderKey]: newOrder }));
+        };
+
+        const resetOrder = () => {
+          setCustomItems((prev) => {
+            const next = { ...prev };
+            delete next[orderKey];
+            return next;
+          });
+        };
+
+        const hasCustomOrder = !!customItems[orderKey];
+
+        return (
+          <Card>
+            {/* Header */}
             <div style={{
               display: "grid", gridTemplateColumns: "1fr auto",
               padding: "14px 20px", borderBottom: "1px solid var(--border-subtle)",
             }}>
-              <span style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>
-                Spending Schedule
-              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>
+                  Spending Schedule
+                </span>
+                {hasCustomOrder && (
+                  <button onClick={resetOrder} style={{ fontSize: 10, fontWeight: 600, color: "var(--accent)", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                    Reset Order
+                  </button>
+                )}
+              </div>
               <span style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>
                 Balance
               </span>
             </div>
 
-            {/* Starting buffer row */}
-            <div style={{
-              display: "grid", gridTemplateColumns: "48px 1fr auto",
-              alignItems: "center", padding: "12px 20px",
-              borderBottom: "1px solid var(--border-subtle)",
-              background: pc.startingBuffer > 0 ? "var(--green-bg)" : pc.startingBuffer < 0 ? "var(--red-bg)" : "transparent",
-            }}>
-              <div style={{ textAlign: "center", lineHeight: 1.2 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>{formatShortDate(pc.date).month}</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-muted)" }}>{formatShortDate(pc.date).day}</div>
+            {/* Starting buffer — only if non-zero */}
+            {startBuffer !== 0 && (
+              <div style={{
+                display: "grid", gridTemplateColumns: "28px 48px 1fr auto",
+                alignItems: "center", padding: "10px 16px 10px 4px",
+                borderBottom: "1px solid var(--border-subtle)",
+                background: startBuffer > 0 ? "var(--green-bg)" : "var(--red-bg)",
+              }}>
+                <div />
+                <div style={{ textAlign: "center", lineHeight: 1.2 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
+                    {new Date(year, month, 1).toLocaleDateString("en-US", { month: "short" }).toUpperCase().slice(0, 3)}
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-muted)" }}>1</div>
+                </div>
+                <div style={{ paddingLeft: 10 }}>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>Starting Buffer</span>
+                  <span style={{ fontSize: 12, color: "var(--text-muted)", marginLeft: 8 }}>rolled over</span>
+                </div>
+                <div style={{ textAlign: "right", minWidth: 100 }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, fontVariantNumeric: "tabular-nums", color: startBuffer > 0 ? "var(--green)" : "var(--red)" }}>
+                    {fmt(startBuffer)}
+                  </div>
+                </div>
               </div>
-              <div style={{ paddingLeft: 14 }}>
-                <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>Starting Buffer</span>
-                {pc.startingBuffer !== 0 && (
-                  <span style={{ fontSize: 12, color: "var(--text-muted)", marginLeft: 8 }}>carried from previous</span>
-                )}
-              </div>
-              <div style={{ textAlign: "right", minWidth: 100 }}>
-                <div style={{
-                  fontSize: 16, fontWeight: 700, fontVariantNumeric: "tabular-nums",
-                  color: pc.startingBuffer > 0 ? "var(--green)" : pc.startingBuffer < 0 ? "var(--red)" : "var(--text-primary)",
-                }}>{fmt(pc.startingBuffer)}</div>
-              </div>
-            </div>
+            )}
 
-            {/* Waterfall rows */}
-            {pc.lines.map((line, i) => (
-              <WaterfallRow key={i} line={line} paycheckKey={pc.key} isLast={i === pc.lines.length - 1} />
+            {/* Unified waterfall rows */}
+            {allLines.map((line, i) => (
+              <WaterfallRow key={`${line.paycheckKey}-${line.lineId}`} line={line} paycheckKey={line.paycheckKey}
+                isFirst={i === 0} isLast={i === allLines.length - 1}
+                onMoveUp={() => swapLines(i, -1)} onMoveDown={() => swapLines(i, 1)} />
             ))}
 
-            {/* Footer with remaining + actions */}
+            {/* Footer */}
             <div style={{
               display: "flex", justifyContent: "space-between", alignItems: "center",
               padding: "12px 20px", borderTop: "1px solid var(--border)",
-              background: pc.finalBalance < 0 ? "var(--red-bg)" : "var(--surface)",
+              background: finalBalance < 0 ? "var(--red-bg)" : "var(--surface)",
             }}>
               <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => setShowAddItem(pc.key)}
+                <button onClick={() => setShowAddItem(allPaychecks[allPaychecks.length - 1]?.key)}
                   style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", color: "var(--text-secondary)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
                   + Expense
                 </button>
-                <button onClick={() => setShowAddIncome(pc.key)}
+                <button onClick={() => setShowAddIncome(allPaychecks[allPaychecks.length - 1]?.key)}
                   style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", color: "var(--green)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
                   + Income
                 </button>
               </div>
               <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>Remaining</div>
-                <div style={{ fontSize: 20, fontWeight: 700, fontVariantNumeric: "tabular-nums", color: pc.finalBalance < 0 ? "var(--red)" : "var(--green)" }}>
-                  {fmt(pc.finalBalance)}
+                <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>End of Month</div>
+                <div style={{ fontSize: 20, fontWeight: 700, fontVariantNumeric: "tabular-nums", color: finalBalance < 0 ? "var(--red)" : "var(--green)" }}>
+                  {fmt(finalBalance)}
                 </div>
               </div>
             </div>
           </Card>
-        ))}
-      </div>
+        );
+      })()}
 
       {/* Month rollover section */}
       {paycheckSchedules.length > 0 && (() => {
@@ -8198,7 +8310,7 @@ export default function MaverickOS() {
               billTemplates={billTemplates} savingsGoals={savingsGoals} paidDates={paidDates}
               customItems={customItems} setCustomItems={setCustomItems}
               monthlyRollovers={monthlyRollovers} setMonthlyRollovers={setMonthlyRollovers}
-              income={income} />
+              income={income} settings={settings} setSettings={setSettings} />
           )}
           {page === "income" && (
             <IncomePage income={income} setIncome={setIncome} showUndo={showUndo} />
