@@ -503,6 +503,14 @@ function getStatusColor(spent, limit) {
 
 let _nextId = 100;
 const nextId = () => _nextId++;
+function seedNextId(state) {
+  let max = 100;
+  const scan = (arr) => { if (Array.isArray(arr)) arr.forEach((item) => { if (item?.id && typeof item.id === "number" && item.id >= max) max = item.id + 1; }); };
+  scan(state.categories); scan(state.transactions); scan(state.income);
+  scan(state.billTemplates); scan(state.savingsGoals); scan(state.debts);
+  scan(state.assets); scan(state.paycheckStreams); scan(state.recurringTransactions);
+  _nextId = max;
+}
 
 // ─────────────────────────────────────────────
 // SHARED UI COMPONENTS
@@ -1399,7 +1407,7 @@ function DashboardPage({ categories, transactions, income, billTemplates, paidDa
 // ─────────────────────────────────────────────
 
 function CalendarPage({ billTemplates, setBillTemplates, paidDates, setPaidDates }) {
-  const [viewDate, setViewDate] = useState(() => new Date(2026, 2, 1));
+  const [viewDate, setViewDate] = useState(() => new Date());
   const [selectedDay, setSelectedDay] = useState(null);
   const [showAddBill, setShowAddBill] = useState(false);
 
@@ -2580,7 +2588,7 @@ function formatShortDate(date) {
 }
 
 function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplates, savingsGoals, paidDates, customItems, setCustomItems, monthlyRollovers, setMonthlyRollovers, income }) {
-  const [viewDate, setViewDate] = useState(() => new Date(2026, 2, 1));
+  const [viewDate, setViewDate] = useState(() => new Date());
   const [showAddStream, setShowAddStream] = useState(false);
   const [showAddItem, setShowAddItem] = useState(null);
   const [showAddIncome, setShowAddIncome] = useState(null);
@@ -5592,7 +5600,7 @@ function SpendingTrendsPage({ categories, transactions }) {
 
   // Build month keys for the last N months (including current)
   const monthKeys = useMemo(() => {
-    const now = new Date(2026, 2, 1); // March 2026 as "current"
+    const now = new Date();
     const keys = [];
     for (let i = monthCount - 1; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -5977,7 +5985,7 @@ function SpendingTrendsPage({ categories, transactions }) {
 // ─────────────────────────────────────────────
 
 function MonthlySummaryPage({ categories, transactions, income, billTemplates, paidDates, savingsGoals, debts }) {
-  const [viewDate, setViewDate] = useState(() => new Date(2026, 2, 1));
+  const [viewDate, setViewDate] = useState(() => new Date());
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
   const monthName = viewDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
@@ -6729,7 +6737,7 @@ function getTargetStatus(target, spent, category) {
     return { monthlyNeeded: category.limit, progress: ratio, status: ratio >= 1 ? "over" : ratio >= 0.85 ? "warning" : "on_track", label: "Monthly Limit" };
   }
 
-  const now = new Date(2026, 2, 17); // current date context
+  const now = new Date();
 
   switch (target.type) {
     case "monthly": {
@@ -6849,7 +6857,7 @@ function EditTargetFields({ category, target, onSubmit, onClose }) {
     const goal = parseFloat(targetAmount) || 0;
     const f = parseFloat(funded) || 0;
     const deadline = new Date(targetDate + "T00:00:00");
-    const now = new Date(2026, 2, 17);
+    const now = new Date();
     const monthsLeft = Math.max(1, (deadline.getFullYear() - now.getFullYear()) * 12 + (deadline.getMonth() - now.getMonth()));
     const remaining = Math.max(goal - f, 0);
     return { monthlyNeeded: remaining / monthsLeft, monthsLeft, remaining };
@@ -7115,7 +7123,7 @@ function BudgetPage({ categories, transactions, setCategories, setTransactions, 
   const [expandedId, setExpandedId] = useState(null);
   const [modal, setModal] = useState(null);
   const [sortBy, setSortBy] = useState("status");
-  const [viewDate, setViewDate] = useState(() => new Date(2026, 2, 1));
+  const [viewDate, setViewDate] = useState(() => new Date());
 
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
@@ -7145,7 +7153,6 @@ function BudgetPage({ categories, transactions, setCategories, setTransactions, 
   const totalRolledOver = Object.values(currentRollovers).reduce((s, v) => s + v, 0);
 
   // Calculate what COULD be rolled over from previous month (unspent budget)
-  // This is a simplified calc — in production you'd filter transactions by month
   const prevMonthUnspent = useMemo(() => {
     const unspent = {};
     let totalAvailable = 0;
@@ -8048,6 +8055,7 @@ export default function MaverickOS() {
       if (saved.budgetTargets) setBudgetTargets(saved.budgetTargets);
       if (saved.recurringTransactions) setRecurringTransactions(saved.recurringTransactions);
       if (saved.settings) setSettings(saved.settings);
+      seedNextId(saved);
     }
     setLoaded(true);
   }, []);
