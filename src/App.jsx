@@ -106,7 +106,7 @@ const INITIAL_INCOME = [
 // Paycheck streams — supports multiple earners and schedules
 const INITIAL_PAYCHECK_STREAMS = [
   { id: 1, name: "My Pay", amount: 2600, frequency: "semimonthly", anchorDate: "2026-01-01", color: "var(--accent)" },
-  { id: 2, name: "Wife's Pay", amount: 2100, frequency: "biweekly", anchorDate: "2026-01-09", color: "#a78bfa" },
+  { id: 2, name: "Wife's Pay", amount: 2100, frequency: "biweekly", anchorDate: "2026-01-09", color: "#d4a843" },
 ];
 
 // Custom line items added manually to specific paychecks — keyed by "streamId-YYYY-MM-DD"
@@ -127,6 +127,16 @@ const INITIAL_BUDGET_TARGETS = {
   health: { type: "monthly", monthlyAmount: 200 },
   personal: { type: "weekly", weeklyAmount: 35 },
 };
+
+// Recurring transaction templates — auto-log spending (not bills)
+// Similar to bill templates but with categoryId for budget tracking
+const INITIAL_RECURRING_TRANSACTIONS = [
+  { id: 1, description: "Spotify", amount: 15.99, categoryId: "entertainment", frequency: "monthly", anchorDate: "2026-01-01", active: true },
+  { id: 2, description: "Gym Membership", amount: 49.99, categoryId: "health", frequency: "monthly", anchorDate: "2026-01-01", active: true },
+  { id: 3, description: "Haircut", amount: 35, categoryId: "personal", frequency: "monthly", anchorDate: "2026-01-06", active: true },
+  { id: 4, description: "Cloud Storage", amount: 2.99, categoryId: "personal", frequency: "monthly", anchorDate: "2026-01-10", active: true },
+  { id: 5, description: "Weekly Groceries", amount: 120, categoryId: "groceries", frequency: "weekly", anchorDate: "2026-01-04", active: false },
+];
 
 // Bill templates — recurring bills use anchorDate + frequency
 // Non-recurring bills use anchorDate as their one-time due date
@@ -408,65 +418,82 @@ function SwipeToDelete({ onDelete, children, disabled = false }) {
   const containerRef = useRef(null);
   const startX = useRef(0);
   const currentX = useRef(0);
-  const swiping = useRef(false);
+  const didSwipe = useRef(false);
   const [offset, setOffset] = useState(0);
   const [showDelete, setShowDelete] = useState(false);
+  const [isSwiping, setIsSwiping] = useState(false);
   const THRESHOLD = 80;
+  const SWIPE_MIN = 8; // minimum px to count as a swipe (not a tap)
 
-  const handleTouchStart = useCallback((e) => {
+  const handleStart = useCallback((clientX) => {
     if (disabled) return;
-    startX.current = e.touches[0].clientX;
-    currentX.current = startX.current;
-    swiping.current = true;
+    startX.current = clientX;
+    currentX.current = clientX;
+    didSwipe.current = false;
+    setIsSwiping(true);
   }, [disabled]);
 
-  const handleTouchMove = useCallback((e) => {
-    if (!swiping.current || disabled) return;
-    currentX.current = e.touches[0].clientX;
+  const handleMove = useCallback((clientX) => {
+    if (!isSwiping || disabled) return;
+    currentX.current = clientX;
     const dx = currentX.current - startX.current;
-    // Only allow left swipe
+    if (Math.abs(dx) > SWIPE_MIN) didSwipe.current = true;
     if (dx < 0) {
-      const clamped = Math.max(dx, -140);
-      setOffset(clamped);
+      setOffset(Math.max(dx, -140));
     }
-  }, [disabled]);
+  }, [isSwiping, disabled]);
 
-  const handleTouchEnd = useCallback(() => {
-    swiping.current = false;
-    if (offset < -THRESHOLD) {
+  const handleEnd = useCallback(() => {
+    if (!isSwiping) return;
+    setIsSwiping(false);
+    const dx = currentX.current - startX.current;
+    if (dx < -THRESHOLD) {
       setOffset(-140);
       setShowDelete(true);
     } else {
       setOffset(0);
       setShowDelete(false);
     }
-  }, [offset]);
+  }, [isSwiping]);
+
+  const handleTouchStart = useCallback((e) => {
+    handleStart(e.touches[0].clientX);
+  }, [handleStart]);
+
+  const handleTouchMove = useCallback((e) => {
+    handleMove(e.touches[0].clientX);
+  }, [handleMove]);
+
+  const handleTouchEnd = useCallback(() => {
+    handleEnd();
+  }, [handleEnd]);
 
   const handleMouseDown = useCallback((e) => {
     if (disabled) return;
-    startX.current = e.clientX;
-    currentX.current = startX.current;
-    swiping.current = true;
-    const handleMouseMove = (ev) => {
-      currentX.current = ev.clientX;
-      const dx = currentX.current - startX.current;
-      if (dx < 0) setOffset(Math.max(dx, -140));
+    handleStart(e.clientX);
+    const onMouseMove = (ev) => handleMove(ev.clientX);
+    const onMouseUp = () => {
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+      handleEnd();
     };
-    const handleMouseUp = () => {
-      swiping.current = false;
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-      const dx = currentX.current - startX.current;
-      if (dx < -THRESHOLD) { setOffset(-140); setShowDelete(true); }
-      else { setOffset(0); setShowDelete(false); }
-    };
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-  }, [disabled]);
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  }, [disabled, handleStart, handleMove, handleEnd]);
+
+  // Suppress click events on children if user swiped
+  const handleClickCapture = useCallback((e) => {
+    if (didSwipe.current) {
+      e.stopPropagation();
+      e.preventDefault();
+      didSwipe.current = false;
+    }
+  }, []);
 
   const reset = useCallback(() => {
     setOffset(0);
     setShowDelete(false);
+    setIsSwiping(false);
   }, []);
 
   return (
@@ -495,9 +522,10 @@ function SwipeToDelete({ onDelete, children, disabled = false }) {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onMouseDown={handleMouseDown}
+        onClickCapture={handleClickCapture}
         style={{
           transform: `translateX(${offset}px)`,
-          transition: swiping.current ? "none" : "transform 0.3s cubic-bezier(0.22,1,0.36,1)",
+          transition: isSwiping ? "none" : "transform 0.3s cubic-bezier(0.22,1,0.36,1)",
           position: "relative", zIndex: 2, background: "var(--card)",
           userSelect: "none",
         }}
@@ -518,7 +546,7 @@ function FrequencyBadge({ frequency }) {
   if (!frequency) return null;
   const colors = {
     weekly: "var(--accent)",
-    biweekly: "#a78bfa",
+    biweekly: "#d4a843",
     monthly: "var(--green)",
     quarterly: "var(--amber)",
     yearly: "var(--red)",
@@ -785,6 +813,11 @@ const NAV_ITEMS = [
       <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10"/><path d="M20.49 15a9 9 0 01-14.85 3.36L1 14"/>
     </svg>
   )},
+  { id: "autospend", label: "Auto-Spend", icon: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/>
+    </svg>
+  )},
   { id: "savings", label: "Savings", icon: (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2"/><path d="M2 9.1C1.2 9 .5 8.2.5 7.3.5 6.1 1.6 5 2.8 5c.2 0 .3 0 .5.1"/>
@@ -869,7 +902,7 @@ function Sidebar({ activePage, onNavigate, collapsed, onToggle, hiddenPages = []
         gap: 10, borderBottom: "1px solid var(--border)", minHeight: 64,
       }}>
         <div style={{
-          width: 32, height: 32, borderRadius: 8, background: "#16a34a",
+          width: 32, height: 32, borderRadius: 8, background: "#1e40af",
           display: "flex", alignItems: "center", justifyContent: "center",
           fontSize: 18, flexShrink: 0,
         }}>💰</div>
@@ -2088,12 +2121,12 @@ function SavingsPage({ savingsGoals, setSavingsGoals }) {
 
 const GOAL_COLORS = [
   { value: "var(--green)", label: "Green" },
-  { value: "var(--accent)", label: "Indigo" },
+  { value: "var(--accent)", label: "Blue" },
   { value: "var(--amber)", label: "Amber" },
   { value: "#f472b6", label: "Pink" },
   { value: "var(--red)", label: "Red" },
   { value: "#38bdf8", label: "Sky" },
-  { value: "#a78bfa", label: "Violet" },
+  { value: "#d4a843", label: "Gold" },
 ];
 
 const GOAL_ICONS = ["🎯", "🛡", "✈", "💻", "🚗", "🏠", "🎓", "💍", "🏖", "🎁", "📱", "🏥"];
@@ -2340,31 +2373,61 @@ function formatShortDate(date) {
   return { month: months[date.getMonth()], day: date.getDate() };
 }
 
-function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplates, savingsGoals, paidDates, customItems, setCustomItems, monthlyRollovers, setMonthlyRollovers }) {
+function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplates, savingsGoals, paidDates, customItems, setCustomItems, monthlyRollovers, setMonthlyRollovers, income }) {
   const [viewDate, setViewDate] = useState(() => new Date(2026, 2, 1));
   const [showAddStream, setShowAddStream] = useState(false);
   const [showAddItem, setShowAddItem] = useState(null);
   const [showAddIncome, setShowAddIncome] = useState(null);
   const [confirmingDelete, setConfirmingDelete] = useState(null);
+  const [useIncomeStreams, setUseIncomeStreams] = useState(true);
 
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
   const monthName = viewDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
+  // Derive paycheck streams from income sources (recurring only)
+  const derivedStreams = useMemo(() => {
+    if (!useIncomeStreams) return [];
+    return income.filter((i) => i.recurring).map((i) => {
+      // Map income frequency to paycheck stream format
+      const streamColors = ["var(--accent)", "#d4a843", "var(--green)", "#38bdf8", "var(--amber)", "#f472b6"];
+      return {
+        id: `inc-${i.id}`,
+        name: i.source,
+        amount: i.amount,
+        frequency: i.frequency,
+        anchorDate: i.date,
+        color: streamColors[(i.id - 1) % streamColors.length],
+        fromIncome: true,
+      };
+    });
+  }, [income, useIncomeStreams]);
+
+  // Merge derived + manual streams (manual takes precedence for overrides)
+  const effectiveStreams = useMemo(() => {
+    if (useIncomeStreams) {
+      // Use derived streams + any manual-only streams (those not matching an income source)
+      const manualOnly = paycheckStreams.filter((s) => !derivedStreams.some((d) => d.name === s.name));
+      return [...derivedStreams, ...manualOnly];
+    }
+    return paycheckStreams;
+  }, [useIncomeStreams, derivedStreams, paycheckStreams]);
+
   // Generate all paychecks for the month
   const allPaychecks = useMemo(() => {
     const checks = [];
-    paycheckStreams.forEach((stream) => {
+    effectiveStreams.forEach((stream) => {
       generatePaycheckDates(stream, year, month).forEach((date) => {
         checks.push({
           streamId: stream.id, streamName: stream.name, streamColor: stream.color,
           amount: stream.amount, date, dateStr: formatDateKey(date),
           key: `${stream.id}-${formatDateKey(date)}`,
+          fromIncome: stream.fromIncome || false,
         });
       });
     });
     return checks.sort((a, b) => a.date - b.date);
-  }, [paycheckStreams, year, month]);
+  }, [effectiveStreams, year, month]);
 
   // Generate bill instances for the month
   const monthBills = useMemo(
@@ -2568,28 +2631,42 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
       </div>
 
       {/* Income streams legend */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-        {paycheckStreams.map((stream) => (
-          <div key={stream.id} style={{
-            display: "flex", alignItems: "center", gap: 8, padding: "6px 12px",
-            background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12,
-          }}>
-            <span style={{ width: 8, height: 8, borderRadius: "50%", background: stream.color }} />
-            <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{stream.name}</span>
-            <span style={{ color: "var(--text-muted)" }}>{fmt(stream.amount)} · {FREQUENCY_LABELS[stream.frequency] || stream.frequency}</span>
-            {confirmingDelete === stream.id ? (
-              <button onClick={() => { setPaycheckStreams((p) => p.filter((s) => s.id !== stream.id)); setConfirmingDelete(null); }}
-                onMouseLeave={() => setConfirmingDelete(null)}
-                style={{ background: "var(--red)", border: "none", borderRadius: 4, padding: "1px 8px", color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>Remove</button>
-            ) : (
-              <button onClick={() => setConfirmingDelete(stream.id)}
-                style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: 0, fontSize: 14, lineHeight: 1 }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = "var(--red)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
-              >×</button>
-            )}
-          </div>
-        ))}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>Income Streams</span>
+          <button onClick={() => setUseIncomeStreams((v) => !v)}
+            style={{ fontSize: 11, fontWeight: 600, color: "var(--accent)", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+            {useIncomeStreams ? "Use manual streams" : "Pull from Income page"}
+          </button>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {effectiveStreams.map((stream) => (
+            <div key={stream.id} style={{
+              display: "flex", alignItems: "center", gap: 8, padding: "6px 12px",
+              background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12,
+            }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: stream.color }} />
+              <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{stream.name}</span>
+              <span style={{ color: "var(--text-muted)" }}>{fmt(stream.amount)} · {FREQUENCY_LABELS[stream.frequency] || stream.frequency}</span>
+              {stream.fromIncome && (
+                <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 4, background: "var(--green-bg)", color: "var(--green)", fontWeight: 700 }}>AUTO</span>
+              )}
+              {!stream.fromIncome && (
+                confirmingDelete === stream.id ? (
+                  <button onClick={() => { setPaycheckStreams((p) => p.filter((s) => s.id !== stream.id)); setConfirmingDelete(null); }}
+                    onMouseLeave={() => setConfirmingDelete(null)}
+                    style={{ background: "var(--red)", border: "none", borderRadius: 4, padding: "1px 8px", color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>Remove</button>
+                ) : (
+                  <button onClick={() => setConfirmingDelete(stream.id)}
+                    style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: 0, fontSize: 14, lineHeight: 1 }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = "var(--red)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
+                  >×</button>
+                )
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Paycheck waterfall cards */}
@@ -2768,7 +2845,7 @@ function AddStreamForm({ onAdd, onClose }) {
   const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const canSubmit = form.name.trim() && parseFloat(form.amount) > 0;
   const streamColors = [
-    { value: "var(--accent)", label: "Indigo" }, { value: "#a78bfa", label: "Violet" },
+    { value: "var(--accent)", label: "Blue" }, { value: "#d4a843", label: "Gold" },
     { value: "var(--green)", label: "Green" }, { value: "#38bdf8", label: "Sky" },
     { value: "var(--amber)", label: "Amber" }, { value: "#f472b6", label: "Pink" },
   ];
@@ -2857,7 +2934,7 @@ const INCOME_CATEGORIES = {
   employment: { label: "Employment", color: "var(--accent)" },
   freelance: { label: "Freelance", color: "var(--amber)" },
   investment: { label: "Investment", color: "var(--green)" },
-  rental: { label: "Rental", color: "#a78bfa" },
+  rental: { label: "Rental", color: "#d4a843" },
   gift: { label: "Gift / Other", color: "#f472b6" },
 };
 
@@ -3272,7 +3349,7 @@ const ASSET_CATEGORIES = {
   retirement: { label: "Retirement", color: "var(--accent)", icon: "📊" },
   investment: { label: "Investments", color: "#38bdf8", icon: "💹" },
   property: { label: "Property", color: "var(--amber)", icon: "🏠" },
-  crypto: { label: "Crypto", color: "#a78bfa", icon: "₿" },
+  crypto: { label: "Crypto", color: "#d4a843", icon: "₿" },
   other: { label: "Other", color: "var(--text-muted)", icon: "📦" },
 };
 
@@ -5128,25 +5205,25 @@ function CashFlowForecastPage({ income, billTemplates, paidDates, transactions, 
             {/* Payday markers */}
             {paydayEvents.map((d, i) => (
               <g key={`pay-${i}`}>
-                <circle cx={scaleX(d.dayNum)} cy={scaleY(d.balance)} r="3.5" fill="#34d399" stroke="#161619" strokeWidth="1.5" />
+                <circle cx={scaleX(d.dayNum)} cy={scaleY(d.balance)} r="3.5" fill="#34d399" stroke="#111827" strokeWidth="1.5" />
               </g>
             ))}
 
             {/* Bill day markers */}
             {billEvents.map((d, i) => (
               <g key={`bill-${i}`}>
-                <circle cx={scaleX(d.dayNum)} cy={scaleY(d.balance)} r="3" fill="#fbbf24" stroke="#161619" strokeWidth="1.5" />
+                <circle cx={scaleX(d.dayNum)} cy={scaleY(d.balance)} r="3" fill="#fbbf24" stroke="#111827" strokeWidth="1.5" />
               </g>
             ))}
 
             {/* Today marker */}
-            <circle cx={scaleX(0)} cy={scaleY(visibleDays[0].balance)} r="4" fill="#6366f1" stroke="#161619" strokeWidth="2" />
+            <circle cx={scaleX(0)} cy={scaleY(visibleDays[0].balance)} r="4" fill="#3b82f6" stroke="#111827" strokeWidth="2" />
           </svg>
 
           {/* Legend */}
           <div style={{ display: "flex", justifyContent: "center", gap: 20, paddingTop: 8 }}>
             {[
-              { color: "#6366f1", label: "Today" },
+              { color: "#3b82f6", label: "Today" },
               { color: "#34d399", label: "Paydays" },
               { color: "#fbbf24", label: "Bills Due" },
             ].map((l) => (
@@ -5299,7 +5376,7 @@ function CashFlowForecastPage({ income, billTemplates, paidDates, transactions, 
 // SPENDING TRENDS PAGE
 // ─────────────────────────────────────────────
 
-const TREND_COLORS = ["#6366f1", "#34d399", "#fbbf24", "#f87171", "#a78bfa", "#f472b6", "#38bdf8", "#fb923c"];
+const TREND_COLORS = ["#3b82f6", "#34d399", "#f0c644", "#f87171", "#d4a843", "#f472b6", "#38bdf8", "#fb923c"];
 
 function SpendingTrendsPage({ categories, transactions }) {
   const [selectedCat, setSelectedCat] = useState("all");
@@ -5547,8 +5624,8 @@ function SpendingTrendsPage({ categories, transactions }) {
               return (
                 <g>
                   <line x1={pad.left} y1={avgY} x2={pad.left + chartData.length * (barW + barGap) - barGap} y2={avgY}
-                    stroke="#6366f1" strokeWidth="1.5" strokeDasharray="6,4" opacity="0.6" />
-                  <text x={pad.left + chartData.length * (barW + barGap) - barGap + 4} y={avgY + 3.5} fill="#6366f1" fontSize="8.5" fontWeight="600" fontFamily="DM Sans, sans-serif">
+                    stroke="#3b82f6" strokeWidth="1.5" strokeDasharray="6,4" opacity="0.6" />
+                  <text x={pad.left + chartData.length * (barW + barGap) - barGap + 4} y={avgY + 3.5} fill="#3b82f6" fontSize="8.5" fontWeight="600" fontFamily="DM Sans, sans-serif">
                     avg
                   </text>
                 </g>
@@ -5984,6 +6061,362 @@ function SettingsPage({ settings, setSettings, onExport, onImport, onReset }) {
 }
 
 // ─────────────────────────────────────────────
+// RECURRING TRANSACTIONS PAGE (Auto-Spend)
+// ─────────────────────────────────────────────
+
+function RecurringTransactionsPage({ recurringTransactions, setRecurringTransactions, categories, transactions, setTransactions }) {
+  const [modal, setModal] = useState(null);
+
+  const catMap = useMemo(() => {
+    const map = {};
+    categories.forEach((c) => { map[c.id] = c; });
+    return map;
+  }, [categories]);
+
+  // Monthly cost equivalent
+  const monthlyEquiv = (rt) => {
+    switch (rt.frequency) {
+      case "weekly": return rt.amount * 52 / 12;
+      case "biweekly": return rt.amount * 26 / 12;
+      case "monthly": return rt.amount;
+      case "quarterly": return rt.amount / 3;
+      case "yearly": return rt.amount / 12;
+      default: return rt.amount;
+    }
+  };
+
+  const activeTemplates = recurringTransactions.filter((rt) => rt.active);
+  const inactiveTemplates = recurringTransactions.filter((rt) => !rt.active);
+  const totalMonthly = activeTemplates.reduce((s, rt) => s + monthlyEquiv(rt), 0);
+  const totalYearly = totalMonthly * 12;
+
+  // Next occurrence for a template
+  const getNextDate = (rt) => {
+    const now = new Date();
+    const anchor = new Date(rt.anchorDate + "T00:00:00");
+    if (rt.frequency === "monthly") {
+      const day = anchor.getDate();
+      let next = new Date(now.getFullYear(), now.getMonth(), day);
+      if (next <= now) next = new Date(now.getFullYear(), now.getMonth() + 1, day);
+      return next;
+    }
+    if (rt.frequency === "weekly") {
+      let cur = new Date(anchor);
+      while (cur <= now) cur = new Date(cur.getTime() + 7 * 86400000);
+      return cur;
+    }
+    if (rt.frequency === "biweekly") {
+      let cur = new Date(anchor);
+      while (cur <= now) cur = new Date(cur.getTime() + 14 * 86400000);
+      return cur;
+    }
+    if (rt.frequency === "quarterly") {
+      let cur = new Date(anchor);
+      while (cur <= now) cur = new Date(cur.getFullYear(), cur.getMonth() + 3, cur.getDate());
+      return cur;
+    }
+    if (rt.frequency === "yearly") {
+      let cur = new Date(anchor);
+      while (cur <= now) cur = new Date(cur.getFullYear() + 1, cur.getMonth(), cur.getDate());
+      return cur;
+    }
+    return now;
+  };
+
+  // Check if a recurring transaction has already been logged this period
+  const isLoggedThisPeriod = (rt) => {
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    return transactions.some((t) =>
+      t.categoryId === rt.categoryId &&
+      t.description === rt.description &&
+      Math.abs(t.amount - rt.amount) < 0.01 &&
+      t.date.startsWith(monthKey)
+    );
+  };
+
+  // Log a recurring transaction as a real transaction now
+  const handleLogNow = (rt) => {
+    const today = new Date().toISOString().split("T")[0];
+    setTransactions((prev) => [...prev, {
+      id: nextId(),
+      categoryId: rt.categoryId,
+      description: rt.description,
+      amount: rt.amount,
+      date: today,
+    }]);
+  };
+
+  // Log all active un-logged templates at once
+  const handleLogAll = () => {
+    const today = new Date().toISOString().split("T")[0];
+    const toLog = activeTemplates.filter((rt) => !isLoggedThisPeriod(rt));
+    if (toLog.length === 0) return;
+    setTransactions((prev) => [
+      ...prev,
+      ...toLog.map((rt) => ({
+        id: nextId(),
+        categoryId: rt.categoryId,
+        description: rt.description,
+        amount: rt.amount,
+        date: today,
+      })),
+    ]);
+  };
+
+  const toggleActive = (id) => {
+    setRecurringTransactions((prev) => prev.map((rt) => rt.id === id ? { ...rt, active: !rt.active } : rt));
+  };
+
+  const deleteTemplate = (id) => {
+    setRecurringTransactions((prev) => prev.filter((rt) => rt.id !== id));
+  };
+
+  const saveTemplate = (template) => {
+    setRecurringTransactions((prev) => {
+      const exists = prev.find((rt) => rt.id === template.id);
+      if (exists) return prev.map((rt) => rt.id === template.id ? template : rt);
+      return [...prev, template];
+    });
+    setModal(null);
+  };
+
+  const unloggedCount = activeTemplates.filter((rt) => !isLoggedThisPeriod(rt)).length;
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28, flexWrap: "wrap", gap: 16 }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em" }}>Recurring Transactions</h1>
+          <p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--text-muted)" }}>Auto-log regular spending — subscriptions, memberships, and habits</p>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {unloggedCount > 0 && (
+            <button onClick={handleLogAll} style={{ padding: "10px 18px", borderRadius: 10, border: "1px solid var(--border)", background: "transparent", color: "var(--text-secondary)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              Log All ({unloggedCount})
+            </button>
+          )}
+          <button onClick={() => setModal({ type: "add" })} style={{ padding: "10px 18px", borderRadius: 10, border: "none", background: "var(--accent)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            + Add Template
+          </button>
+        </div>
+      </div>
+
+      {/* Summary metrics */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 24 }}>
+        <MetricBox label="Monthly Auto-Spend" value={fmt(totalMonthly)} sub={`${activeTemplates.length} active`} accent="var(--accent)" />
+        <MetricBox label="Yearly Total" value={fmt(totalYearly)} sub="projected" accent="var(--text-secondary)" />
+        <MetricBox label="Unlogged" value={unloggedCount} sub="this month" accent={unloggedCount > 0 ? "var(--amber)" : "var(--green)"} />
+        <MetricBox label="Templates" value={recurringTransactions.length} sub={`${inactiveTemplates.length} paused`} accent="var(--text-muted)" />
+      </div>
+
+      {/* Active templates */}
+      {activeTemplates.length > 0 && (
+        <Card style={{ marginBottom: 20 }}>
+          <CardHeader title="Active" action={
+            <span style={{ fontSize: 12, color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>{fmt(totalMonthly)}/mo</span>
+          } />
+          <div>
+            {activeTemplates.map((rt) => {
+              const cat = catMap[rt.categoryId];
+              const logged = isLoggedThisPeriod(rt);
+              const nextDate = getNextDate(rt);
+              return (
+                <SwipeToDelete key={rt.id} onDelete={() => deleteTemplate(rt.id)}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 20px", borderBottom: "1px solid var(--border-subtle)" }}>
+                    {/* Category icon */}
+                    <span style={{ width: 36, height: 36, borderRadius: 8, background: "var(--icon-bg)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>
+                      {cat?.icon || "●"}
+                    </span>
+
+                    {/* Info */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{rt.description}</span>
+                        <FrequencyBadge frequency={rt.frequency} />
+                      </div>
+                      <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
+                        {cat?.name || "Unknown"} · Next: {nextDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      </div>
+                    </div>
+
+                    {/* Amount + actions */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                      <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", fontVariantNumeric: "tabular-nums" }}>{fmt(rt.amount)}</span>
+                      {logged ? (
+                        <span style={{ padding: "3px 8px", borderRadius: 6, background: "var(--green-bg)", color: "var(--green)", fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Logged</span>
+                      ) : (
+                        <button onClick={(e) => { e.stopPropagation(); handleLogNow(rt); }}
+                          style={{ padding: "4px 10px", borderRadius: 6, border: "none", background: "var(--accent)", color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                          Log
+                        </button>
+                      )}
+                      <button onClick={(e) => { e.stopPropagation(); setModal({ type: "edit", template: rt }); }}
+                        style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", color: "var(--text-muted)", fontSize: 11, cursor: "pointer" }}>
+                        Edit
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); toggleActive(rt.id); }}
+                        style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", color: "var(--text-muted)", fontSize: 11, cursor: "pointer" }}>
+                        Pause
+                      </button>
+                    </div>
+                  </div>
+                </SwipeToDelete>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
+      {/* Inactive / Paused templates */}
+      {inactiveTemplates.length > 0 && (
+        <Card style={{ marginBottom: 20 }}>
+          <CardHeader title="Paused" />
+          <div>
+            {inactiveTemplates.map((rt) => {
+              const cat = catMap[rt.categoryId];
+              return (
+                <SwipeToDelete key={rt.id} onDelete={() => deleteTemplate(rt.id)}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 20px", borderBottom: "1px solid var(--border-subtle)", opacity: 0.5 }}>
+                    <span style={{ width: 36, height: 36, borderRadius: 8, background: "var(--icon-bg)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>
+                      {cat?.icon || "●"}
+                    </span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{rt.description}</div>
+                      <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{cat?.name || "Unknown"} · {fmt(rt.amount)} · {FREQUENCY_LABELS[rt.frequency]}</div>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                      <button onClick={() => toggleActive(rt.id)}
+                        style={{ padding: "6px 12px", borderRadius: 6, border: "none", background: "var(--accent)", color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                        Resume
+                      </button>
+                      <button onClick={() => setModal({ type: "edit", template: rt })}
+                        style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", color: "var(--text-muted)", fontSize: 11, cursor: "pointer" }}>
+                        Edit
+                      </button>
+                    </div>
+                  </div>
+                </SwipeToDelete>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
+      {/* Empty state */}
+      {recurringTransactions.length === 0 && (
+        <div style={{ textAlign: "center", padding: "48px 20px" }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>↻</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 }}>No recurring transactions yet</div>
+          <div style={{ fontSize: 13, color: "var(--text-muted)", maxWidth: 400, margin: "0 auto" }}>
+            Add templates for subscriptions, memberships, and regular spending. Log them each month with one tap.
+          </div>
+        </div>
+      )}
+
+      {/* Add / Edit Modal */}
+      {(modal?.type === "add" || modal?.type === "edit") && (
+        <Overlay onClose={() => setModal(null)}>
+          <ModalForm title={modal.type === "add" ? "Add Recurring Transaction" : "Edit Recurring Transaction"}>
+            <RecurringTransactionFields
+              categories={categories}
+              existing={modal.type === "edit" ? modal.template : null}
+              onSubmit={saveTemplate}
+              onClose={() => setModal(null)}
+            />
+          </ModalForm>
+        </Overlay>
+      )}
+    </div>
+  );
+}
+
+function RecurringTransactionFields({ categories, existing, onSubmit, onClose }) {
+  const [form, setForm] = useState({
+    description: existing?.description || "",
+    amount: existing ? String(existing.amount) : "",
+    categoryId: existing?.categoryId || categories[0]?.id || "",
+    frequency: existing?.frequency || "monthly",
+    anchorDate: existing?.anchorDate || new Date().toISOString().split("T")[0],
+    active: existing?.active ?? true,
+  });
+  const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const canSubmit = form.description.trim() && parseFloat(form.amount) > 0 && form.categoryId && form.anchorDate;
+
+  const handleSave = () => {
+    if (!canSubmit) return;
+    onSubmit({
+      id: existing?.id || nextId(),
+      description: form.description.trim(),
+      amount: parseFloat(form.amount),
+      categoryId: form.categoryId,
+      frequency: form.frequency,
+      anchorDate: form.anchorDate,
+      active: form.active,
+    });
+  };
+
+  // Monthly equivalent preview
+  const monthlyEq = (() => {
+    const amt = parseFloat(form.amount) || 0;
+    switch (form.frequency) {
+      case "weekly": return amt * 52 / 12;
+      case "biweekly": return amt * 26 / 12;
+      case "monthly": return amt;
+      case "quarterly": return amt / 3;
+      case "yearly": return amt / 12;
+      default: return amt;
+    }
+  })();
+
+  return (
+    <>
+      <div style={{ padding: "16px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
+        <div>
+          <FieldLabel>Description</FieldLabel>
+          <input value={form.description} onChange={(e) => update("description", e.target.value)} placeholder="e.g. Netflix, Gym, Weekly groceries" style={INPUT_STYLE} />
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div>
+            <FieldLabel>Amount ($)</FieldLabel>
+            <input type="number" step="0.01" min="0" value={form.amount} onChange={(e) => update("amount", e.target.value)} placeholder="0.00" style={INPUT_STYLE} />
+          </div>
+          <div>
+            <FieldLabel>Category</FieldLabel>
+            <select value={form.categoryId} onChange={(e) => update("categoryId", e.target.value)} style={{ ...INPUT_STYLE, cursor: "pointer" }}>
+              {categories.map((c) => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+            </select>
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div>
+            <FieldLabel>Frequency</FieldLabel>
+            <select value={form.frequency} onChange={(e) => update("frequency", e.target.value)} style={{ ...INPUT_STYLE, cursor: "pointer" }}>
+              <option value="weekly">Weekly</option>
+              <option value="biweekly">Biweekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="quarterly">Quarterly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+          </div>
+          <div>
+            <FieldLabel>Start Date</FieldLabel>
+            <input type="date" value={form.anchorDate} onChange={(e) => update("anchorDate", e.target.value)} style={INPUT_STYLE} />
+          </div>
+        </div>
+        {parseFloat(form.amount) > 0 && form.frequency !== "monthly" && (
+          <div style={{ padding: "8px 12px", borderRadius: 8, background: "var(--surface)", border: "1px solid var(--border)", fontSize: 12, color: "var(--text-muted)" }}>
+            ≈ {fmt(monthlyEq)} per month · {fmt(monthlyEq * 12)} per year
+          </div>
+        )}
+      </div>
+      <ModalActions onClose={onClose} canSubmit={canSubmit} label={existing ? "Save" : "Add Template"} onSubmit={handleSave} />
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────
 // BUDGET TARGETS PAGE (YNAB-Style)
 // ─────────────────────────────────────────────
 
@@ -6270,12 +6703,13 @@ function FundTargetFields({ category, target, onSubmit, onClose }) {
 // BUDGET PAGE
 // ─────────────────────────────────────────────
 
-function CategoryCard({ category, transactions, onExpand, isExpanded, onEditTarget, onFundTarget, target }) {
+function CategoryCard({ category, transactions, onExpand, isExpanded, onEditTarget, onFundTarget, target, rollover }) {
   const spent = transactions.reduce((s, t) => s + t.amount, 0);
   const tStatus = getTargetStatus(target, spent, category);
   const isTargetByDate = target?.type === "target_by_date";
   const isWeekly = target?.type === "weekly";
-  const effectiveLimit = tStatus.effectiveLimit || tStatus.monthlyNeeded || category.limit;
+  const baseLimit = tStatus.effectiveLimit || tStatus.monthlyNeeded || category.limit;
+  const effectiveLimit = baseLimit + (rollover || 0);
   const diff = isTargetByDate ? (tStatus.goalAmt || 0) - (tStatus.funded || 0) : effectiveLimit - spent;
 
   return (
@@ -6330,7 +6764,14 @@ function CategoryCard({ category, transactions, onExpand, isExpanded, onEditTarg
           <>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
               <span style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", fontVariantNumeric: "tabular-nums" }}>{fmt(spent)}</span>
-              <span style={{ fontSize: 13, color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>of {fmt(effectiveLimit)}</span>
+              <div style={{ textAlign: "right" }}>
+                <span style={{ fontSize: 13, color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>of {fmt(effectiveLimit)}</span>
+                {rollover > 0 && (
+                  <div style={{ fontSize: 10, color: "var(--accent)", fontWeight: 600, marginTop: 1 }}>
+                    +{fmt(rollover)} rolled over
+                  </div>
+                )}
+              </div>
             </div>
             <ProgressBar value={spent} max={effectiveLimit} />
             <div style={{ marginTop: 8, fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums",
@@ -6374,10 +6815,15 @@ function CategoryCard({ category, transactions, onExpand, isExpanded, onEditTarg
   );
 }
 
-function BudgetPage({ categories, transactions, setCategories, setTransactions, income, budgetTargets, setBudgetTargets }) {
+function BudgetPage({ categories, transactions, setCategories, setTransactions, income, budgetTargets, setBudgetTargets, budgetRollovers, setBudgetRollovers }) {
   const [expandedId, setExpandedId] = useState(null);
   const [modal, setModal] = useState(null);
   const [sortBy, setSortBy] = useState("status");
+
+  // Current month context
+  const currentMonthKey = "2026-03";
+  const prevMonthKey = "2026-02";
+  const prevMonthName = "February";
 
   const txByCategory = useMemo(() => {
     const map = {};
@@ -6385,6 +6831,45 @@ function BudgetPage({ categories, transactions, setCategories, setTransactions, 
     transactions.forEach((t) => { if (map[t.categoryId]) map[t.categoryId].push(t); });
     return map;
   }, [categories, transactions]);
+
+  // Current month's rollovers (carried from previous month)
+  const currentRollovers = budgetRollovers[currentMonthKey] || {};
+  const totalRolledOver = Object.values(currentRollovers).reduce((s, v) => s + v, 0);
+
+  // Calculate what COULD be rolled over from previous month (unspent budget)
+  // This is a simplified calc — in production you'd filter transactions by month
+  const prevMonthUnspent = useMemo(() => {
+    const unspent = {};
+    let totalAvailable = 0;
+    categories.forEach((c) => {
+      const target = budgetTargets[c.id];
+      if (target?.type === "target_by_date") return; // don't roll over date targets
+      const spent = (txByCategory[c.id] || []).reduce((s, t) => s + t.amount, 0);
+      const tStatus = getTargetStatus(target, spent, c);
+      const limit = tStatus.effectiveLimit || tStatus.monthlyNeeded || c.limit;
+      const remaining = limit - spent;
+      if (remaining > 0) {
+        unspent[c.id] = Math.round(remaining * 100) / 100;
+        totalAvailable += remaining;
+      }
+    });
+    return { byCat: unspent, total: totalAvailable };
+  }, [categories, txByCategory, budgetTargets]);
+
+  // Has rollover already been applied this month?
+  const rolloverApplied = Object.keys(currentRollovers).length > 0;
+
+  const handleApplyRollovers = () => {
+    setBudgetRollovers((prev) => ({ ...prev, [currentMonthKey]: prevMonthUnspent.byCat }));
+  };
+
+  const handleClearRollovers = () => {
+    setBudgetRollovers((prev) => {
+      const next = { ...prev };
+      delete next[currentMonthKey];
+      return next;
+    });
+  };
 
   const sortedCategories = useMemo(() => {
     const arr = [...categories];
@@ -6413,20 +6898,24 @@ function BudgetPage({ categories, transactions, setCategories, setTransactions, 
     }
   }, 0);
 
-  // Use target-aware totals
+  // Use target-aware totals (including rollovers)
   const totalBudgeted = categories.reduce((s, c) => {
     const spent = (txByCategory[c.id] || []).reduce((sum, t) => sum + t.amount, 0);
     const ts = getTargetStatus(budgetTargets[c.id], spent, c);
-    return s + (ts.effectiveLimit || ts.monthlyNeeded || c.limit);
+    const base = ts.effectiveLimit || ts.monthlyNeeded || c.limit;
+    const ro = currentRollovers[c.id] || 0;
+    return s + base + ro;
   }, 0);
   const totalSpent = transactions.reduce((s, t) => s + t.amount, 0);
-  const unbudgeted = totalIncome - totalBudgeted;
+  const unbudgeted = totalIncome - totalBudgeted + totalRolledOver;
   const overCount = categories.filter((c) => {
     const spent = (txByCategory[c.id] || []).reduce((s, t) => s + t.amount, 0);
     const ts = getTargetStatus(budgetTargets[c.id], spent, c);
-    return ts.status === "over";
+    const limit = (ts.effectiveLimit || ts.monthlyNeeded || c.limit) + (currentRollovers[c.id] || 0);
+    return spent > limit;
   }).length;
   const targetByDateCount = categories.filter((c) => budgetTargets[c.id]?.type === "target_by_date").length;
+  const rolloverCatCount = Object.keys(currentRollovers).filter((k) => currentRollovers[k] > 0).length;
 
   const handleSaveTarget = (catId, targetData) => {
     setBudgetTargets((prev) => ({ ...prev, [catId]: targetData }));
@@ -6503,6 +6992,84 @@ function BudgetPage({ categories, transactions, setCategories, setTransactions, 
         <MetricBox label="Categories Over" value={overCount} sub={overCount === 0 ? "all on track" : "need attention"} accent={overCount > 0 ? "var(--red)" : "var(--green)"} />
       </div>
 
+      {/* Budget Rollover Card */}
+      {(prevMonthUnspent.total > 0 || rolloverApplied) && (
+        <Card style={{ marginBottom: 20, borderColor: rolloverApplied ? "var(--accent)" : "var(--border)" }}>
+          <div style={{ padding: "16px 20px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: rolloverApplied ? 12 : 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ width: 32, height: 32, borderRadius: 8, background: rolloverApplied ? "var(--accent)" + "18" : "var(--surface)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>
+                  {rolloverApplied ? "✓" : "↻"}
+                </span>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>
+                    {rolloverApplied ? "Rollovers Applied" : "Roll Over Unspent Budget"}
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                    {rolloverApplied
+                      ? `${fmt(totalRolledOver)} carried forward across ${rolloverCatCount} categor${rolloverCatCount === 1 ? "y" : "ies"}`
+                      : `${fmt(prevMonthUnspent.total)} unspent from ${prevMonthName} available to roll forward`
+                    }
+                  </div>
+                </div>
+              </div>
+              {rolloverApplied ? (
+                <button onClick={handleClearRollovers}
+                  style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid var(--border)", background: "transparent", color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                  Undo
+                </button>
+              ) : (
+                <button onClick={handleApplyRollovers}
+                  style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: "var(--accent)", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                  Roll Over
+                </button>
+              )}
+            </div>
+
+            {/* Per-category rollover detail (only show when applied) */}
+            {rolloverApplied && (
+              <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: 12 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {categories.filter((c) => (currentRollovers[c.id] || 0) > 0).map((c) => (
+                    <div key={c.id} style={{
+                      display: "flex", alignItems: "center", gap: 6, padding: "4px 10px",
+                      borderRadius: 999, background: "var(--surface)", border: "1px solid var(--border)",
+                      fontSize: 12, color: "var(--text-secondary)",
+                    }}>
+                      <span>{c.icon}</span>
+                      <span style={{ fontWeight: 500 }}>{c.name}</span>
+                      <span style={{ fontWeight: 700, color: "var(--accent)", fontVariantNumeric: "tabular-nums" }}>+{fmt(currentRollovers[c.id])}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Preview of what will roll over (before applying) */}
+            {!rolloverApplied && prevMonthUnspent.total > 0 && (
+              <div style={{ marginTop: 12, borderTop: "1px solid var(--border-subtle)", paddingTop: 12 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)", marginBottom: 8 }}>
+                  Unspent by Category
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {categories.filter((c) => (prevMonthUnspent.byCat[c.id] || 0) > 0).map((c) => (
+                    <div key={c.id} style={{
+                      display: "flex", alignItems: "center", gap: 6, padding: "4px 10px",
+                      borderRadius: 999, background: "var(--surface)", border: "1px solid var(--border)",
+                      fontSize: 12, color: "var(--text-secondary)",
+                    }}>
+                      <span>{c.icon}</span>
+                      <span style={{ fontWeight: 500 }}>{c.name}</span>
+                      <span style={{ fontWeight: 700, color: "var(--green)", fontVariantNumeric: "tabular-nums" }}>{fmt(prevMonthUnspent.byCat[c.id])}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
+
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {[{ key: "status", label: "By Status" }, { key: "spent", label: "By Spent" }, { key: "name", label: "By Name" }].map((s) => (
           <button key={s.key} onClick={() => setSortBy(s.key)} style={pillStyle(sortBy === s.key)}>{s.label}</button>
@@ -6511,12 +7078,15 @@ function BudgetPage({ categories, transactions, setCategories, setTransactions, 
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 14 }}>
         {sortedCategories.map((cat) => (
-          <CategoryCard key={cat.id} category={cat} transactions={txByCategory[cat.id] || []}
-            target={budgetTargets[cat.id] || null}
-            isExpanded={expandedId === cat.id} onExpand={setExpandedId}
-            onEditTarget={(c) => setModal({ type: "editTarget", category: c })}
-            onFundTarget={(c) => setModal({ type: "fund", category: c })}
-          />
+          <SwipeToDelete key={cat.id} onDelete={() => setCategories((prev) => prev.filter((c) => c.id !== cat.id))}>
+            <CategoryCard category={cat} transactions={txByCategory[cat.id] || []}
+              target={budgetTargets[cat.id] || null}
+              rollover={currentRollovers[cat.id] || 0}
+              isExpanded={expandedId === cat.id} onExpand={setExpandedId}
+              onEditTarget={(c) => setModal({ type: "editTarget", category: c })}
+              onFundTarget={(c) => setModal({ type: "fund", category: c })}
+            />
+          </SwipeToDelete>
         ))}
       </div>
 
@@ -6675,7 +7245,7 @@ function generateAppIcon(size = 512) {
   ctx.lineTo(r, size); ctx.quadraticCurveTo(0, size, 0, size - r);
   ctx.lineTo(0, r); ctx.quadraticCurveTo(0, 0, r, 0);
   ctx.closePath();
-  ctx.fillStyle = "#16a34a";
+  ctx.fillStyle = "#1e40af";
   ctx.fill();
   // Money bag emoji
   ctx.font = `${size * 0.55}px serif`;
@@ -6704,7 +7274,7 @@ function PwaHead() {
     // Theme color
     let theme = document.querySelector('meta[name="theme-color"]');
     if (!theme) { theme = document.createElement("meta"); theme.name = "theme-color"; document.head.appendChild(theme); }
-    theme.content = "#16a34a";
+    theme.content = "#1e40af";
 
     // Apple mobile web app capable
     let capable = document.querySelector('meta[name="apple-mobile-web-app-capable"]');
@@ -6724,7 +7294,7 @@ function PwaHead() {
       start_url: "/",
       display: "standalone",
       background_color: "#0c0c0e",
-      theme_color: "#16a34a",
+      theme_color: "#1e40af",
       icons: [
         { src: iconUrl192, sizes: "192x192", type: "image/png" },
         { src: iconUrl, sizes: "512x512", type: "image/png" },
@@ -6762,6 +7332,7 @@ export default function MaverickOS() {
   const [monthlyRollovers, setMonthlyRollovers] = useState({});
   const [budgetRollovers, setBudgetRollovers] = useState(INITIAL_BUDGET_ROLLOVERS);
   const [budgetTargets, setBudgetTargets] = useState(INITIAL_BUDGET_TARGETS);
+  const [recurringTransactions, setRecurringTransactions] = useState(INITIAL_RECURRING_TRANSACTIONS);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
 
   // Load from localStorage on mount
@@ -6781,6 +7352,7 @@ export default function MaverickOS() {
       if (saved.monthlyRollovers) setMonthlyRollovers(saved.monthlyRollovers);
       if (saved.budgetRollovers) setBudgetRollovers(saved.budgetRollovers);
       if (saved.budgetTargets) setBudgetTargets(saved.budgetTargets);
+      if (saved.recurringTransactions) setRecurringTransactions(saved.recurringTransactions);
       if (saved.settings) setSettings(saved.settings);
     }
     setLoaded(true);
@@ -6789,18 +7361,18 @@ export default function MaverickOS() {
   // Save to localStorage whenever state changes (after initial load)
   useEffect(() => {
     if (!loaded) return;
-    saveState({ categories, transactions, income, billTemplates, paidDates, savingsGoals, debts, assets, paycheckStreams, customItems, monthlyRollovers, budgetRollovers, budgetTargets, settings });
-  }, [loaded, categories, transactions, income, billTemplates, paidDates, savingsGoals, debts, assets, paycheckStreams, customItems, monthlyRollovers, budgetRollovers, budgetTargets, settings]);
+    saveState({ categories, transactions, income, billTemplates, paidDates, savingsGoals, debts, assets, paycheckStreams, customItems, monthlyRollovers, budgetRollovers, budgetTargets, recurringTransactions, settings });
+  }, [loaded, categories, transactions, income, billTemplates, paidDates, savingsGoals, debts, assets, paycheckStreams, customItems, monthlyRollovers, budgetRollovers, budgetTargets, recurringTransactions, settings]);
 
   // Export all data as JSON download
   const handleExport = useCallback(() => {
-    const data = { categories, transactions, income, billTemplates, paidDates: [...paidDates], savingsGoals, debts, assets, paycheckStreams, customItems, monthlyRollovers, budgetRollovers, budgetTargets, settings, exportDate: new Date().toISOString() };
+    const data = { categories, transactions, income, billTemplates, paidDates: [...paidDates], savingsGoals, debts, assets, paycheckStreams, customItems, monthlyRollovers, budgetRollovers, budgetTargets, recurringTransactions, settings, exportDate: new Date().toISOString() };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url; a.download = `maverickos-backup-${new Date().toISOString().split("T")[0]}.json`;
     a.click(); URL.revokeObjectURL(url);
-  }, [categories, transactions, income, billTemplates, paidDates, savingsGoals, debts, assets, paycheckStreams, customItems, monthlyRollovers, budgetRollovers, budgetTargets, settings]);
+  }, [categories, transactions, income, billTemplates, paidDates, savingsGoals, debts, assets, paycheckStreams, customItems, monthlyRollovers, budgetRollovers, budgetTargets, recurringTransactions, settings]);
 
   // Import data from JSON string
   const handleImport = useCallback((jsonStr) => {
@@ -6819,6 +7391,7 @@ export default function MaverickOS() {
       if (data.monthlyRollovers) setMonthlyRollovers(data.monthlyRollovers);
       if (data.budgetRollovers) setBudgetRollovers(data.budgetRollovers);
       if (data.budgetTargets) setBudgetTargets(data.budgetTargets);
+      if (data.recurringTransactions) setRecurringTransactions(data.recurringTransactions);
       if (data.settings) setSettings(data.settings);
     } catch {}
   }, []);
@@ -6830,23 +7403,23 @@ export default function MaverickOS() {
     setPaidDates(INITIAL_PAID_DATES); setSavingsGoals(INITIAL_SAVINGS_GOALS);
     setDebts(INITIAL_DEBTS); setAssets(INITIAL_ASSETS);
     setPaycheckStreams(INITIAL_PAYCHECK_STREAMS); setCustomItems(INITIAL_CUSTOM_ITEMS);
-    setMonthlyRollovers({}); setBudgetRollovers({}); setBudgetTargets(INITIAL_BUDGET_TARGETS); setSettings(DEFAULT_SETTINGS);
+    setMonthlyRollovers({}); setBudgetRollovers({}); setBudgetTargets(INITIAL_BUDGET_TARGETS); setRecurringTransactions(INITIAL_RECURRING_TRANSACTIONS); setSettings(DEFAULT_SETTINGS);
     clearState();
   }, []);
 
   return (
     <div style={{
-      "--bg": "#0c0c0e", "--card": "#161619", "--surface": "#111114", "--sidebar": "#101013",
-      "--border": "#26262e", "--border-hover": "#3a3a46", "--border-subtle": "#1e1e24",
-      "--track": "#1e1e24",
-      "--nav-active": "#1e1e28", "--nav-hover": "#18181c",
-      "--text-primary": "#e8e8ec", "--text-secondary": "#a0a0b0", "--text-muted": "#6a6a7a",
-      "--icon-bg": "#1e1e28",
+      "--bg": "#0a0e17", "--card": "#111827", "--surface": "#0d1220", "--sidebar": "#0b0f1a",
+      "--border": "#1e2a3f", "--border-hover": "#2d3f5a", "--border-subtle": "#162032",
+      "--track": "#162032",
+      "--nav-active": "#152238", "--nav-hover": "#111d30",
+      "--text-primary": "#e8ecf4", "--text-secondary": "#8fa3c0", "--text-muted": "#5a7194",
+      "--icon-bg": "#152238",
       "--green": "#34d399", "--green-bg": "#34d39918",
-      "--amber": "#fbbf24", "--amber-bg": "#fbbf2418",
+      "--amber": "#f0c644", "--amber-bg": "#f0c64418",
       "--red": "#f87171", "--red-bg": "#f8717118",
-      "--accent": "#6366f1",
-      "--shadow": "rgba(0,0,0,0.15)", "--shadow-heavy": "rgba(0,0,0,0.4)",
+      "--accent": "#3b82f6",
+      "--shadow": "rgba(0,0,0,0.2)", "--shadow-heavy": "rgba(0,0,0,0.5)",
       fontFamily: "'DM Sans', 'SF Pro Display', -apple-system, sans-serif",
       background: "var(--bg)", color: "var(--text-primary)",
       display: "flex", minHeight: "100vh", boxSizing: "border-box",
@@ -6871,7 +7444,7 @@ export default function MaverickOS() {
               savingsGoals={savingsGoals} debts={debts} assets={assets} settings={settings} />
           )}
           {page === "budget" && (
-            <BudgetPage categories={categories} transactions={transactions} setCategories={setCategories} setTransactions={setTransactions} income={income} budgetTargets={budgetTargets} setBudgetTargets={setBudgetTargets} />
+            <BudgetPage categories={categories} transactions={transactions} setCategories={setCategories} setTransactions={setTransactions} income={income} budgetTargets={budgetTargets} setBudgetTargets={setBudgetTargets} budgetRollovers={budgetRollovers} setBudgetRollovers={setBudgetRollovers} />
           )}
           {page === "calendar" && (
             <CalendarPage billTemplates={billTemplates} setBillTemplates={setBillTemplates}
@@ -6881,6 +7454,10 @@ export default function MaverickOS() {
             <RecurringBillsPage billTemplates={billTemplates} setBillTemplates={setBillTemplates}
               paidDates={paidDates} onNavigate={setPage} />
           )}
+          {page === "autospend" && (
+            <RecurringTransactionsPage recurringTransactions={recurringTransactions} setRecurringTransactions={setRecurringTransactions}
+              categories={categories} transactions={transactions} setTransactions={setTransactions} />
+          )}
           {page === "savings" && (
             <SavingsPage savingsGoals={savingsGoals} setSavingsGoals={setSavingsGoals} />
           )}
@@ -6888,7 +7465,8 @@ export default function MaverickOS() {
             <PaycheckPlannerPage paycheckStreams={paycheckStreams} setPaycheckStreams={setPaycheckStreams}
               billTemplates={billTemplates} savingsGoals={savingsGoals} paidDates={paidDates}
               customItems={customItems} setCustomItems={setCustomItems}
-              monthlyRollovers={monthlyRollovers} setMonthlyRollovers={setMonthlyRollovers} />
+              monthlyRollovers={monthlyRollovers} setMonthlyRollovers={setMonthlyRollovers}
+              income={income} />
           )}
           {page === "income" && (
             <IncomePage income={income} setIncome={setIncome} />
