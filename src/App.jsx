@@ -709,6 +709,41 @@ const INPUT_STYLE = {
   color: "var(--text-primary)", fontSize: 14, outline: "none", boxSizing: "border-box",
 };
 
+function UndoToast({ message, onUndo, onDismiss }) {
+  const [visible, setVisible] = useState(true);
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    timerRef.current = setTimeout(() => {
+      setVisible(false);
+      setTimeout(onDismiss, 300);
+    }, 5000);
+    return () => clearTimeout(timerRef.current);
+  }, [onDismiss]);
+
+  const handleUndo = () => {
+    clearTimeout(timerRef.current);
+    onUndo();
+  };
+
+  return (
+    <div style={{
+      position: "fixed", bottom: 100, left: "50%", transform: `translateX(-50%) translateY(${visible ? "0" : "20px"})`,
+      zIndex: 9000, opacity: visible ? 1 : 0, transition: "all 0.3s cubic-bezier(0.22,1,0.36,1)",
+      background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12,
+      padding: "12px 16px", display: "flex", alignItems: "center", gap: 14,
+      boxShadow: "0 8px 32px var(--shadow-heavy)", minWidth: 260, maxWidth: 400,
+    }}>
+      <div style={{ flex: 1, fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>{message}</div>
+      <button onClick={handleUndo} style={{
+        padding: "6px 14px", borderRadius: 8, border: "none",
+        background: "var(--accent)", color: "#fff", fontSize: 13, fontWeight: 700,
+        cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0,
+      }}>Undo</button>
+    </div>
+  );
+}
+
 function FrequencyBadge({ frequency }) {
   if (!frequency) return null;
   const colors = {
@@ -1732,7 +1767,7 @@ function AddBillForm({ onAdd, onClose }) {
 // RECURRING BILLS PAGE
 // ─────────────────────────────────────────────
 
-function RecurringBillsPage({ billTemplates, setBillTemplates, paidDates, onNavigate }) {
+function RecurringBillsPage({ billTemplates, setBillTemplates, paidDates, onNavigate, showUndo }) {
   const [editingBill, setEditingBill] = useState(null);
   const [showAddBill, setShowAddBill] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(null);
@@ -1765,6 +1800,8 @@ function RecurringBillsPage({ billTemplates, setBillTemplates, paidDates, onNavi
   const freqOrder = ["weekly", "biweekly", "monthly", "quarterly", "yearly"];
 
   const deleteBill = (id) => {
+    const bill = billTemplates.find((b) => b.id === id);
+    if (showUndo && bill) showUndo(`Deleted "${bill.name}" bill`);
     setBillTemplates((prev) => prev.filter((b) => b.id !== id));
   };
 
@@ -2057,7 +2094,7 @@ function EditBillForm({ bill, onSave, onClose }) {
 // SAVINGS GOALS PAGE
 // ─────────────────────────────────────────────
 
-function SavingsPage({ savingsGoals, setSavingsGoals }) {
+function SavingsPage({ savingsGoals, setSavingsGoals, showUndo }) {
   const [modal, setModal] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
 
@@ -2085,6 +2122,8 @@ function SavingsPage({ savingsGoals, setSavingsGoals }) {
   };
 
   const deleteGoal = (id) => {
+    const goal = savingsGoals.find((g) => g.id === id);
+    if (showUndo && goal) showUndo(`Deleted "${goal.name}" goal`);
     setSavingsGoals((prev) => prev.filter((g) => g.id !== id));
   };
 
@@ -3105,7 +3144,7 @@ const INCOME_CATEGORIES = {
   gift: { label: "Gift / Other", color: "#f472b6" },
 };
 
-function IncomePage({ income, setIncome }) {
+function IncomePage({ income, setIncome, showUndo }) {
   const [modal, setModal] = useState(null);
 
   const totalMonthly = income.filter((i) => i.recurring).reduce((s, i) => {
@@ -3130,7 +3169,7 @@ function IncomePage({ income, setIncome }) {
     grouped[cat].push(i);
   });
 
-  const deleteIncome = (id) => { setIncome((prev) => prev.filter((i) => i.id !== id)); setConfirmingDelete(null); };
+  const deleteIncome = (id) => { const inc = income.find((i) => i.id === id); if (showUndo && inc) showUndo(`Deleted "${inc.source}"`); setIncome((prev) => prev.filter((i) => i.id !== id)); setConfirmingDelete(null); };
 
   return (
     <div>
@@ -3272,7 +3311,7 @@ function IncomeForm({ existing, onSave, onClose, title }) {
 // DEBT PAGE
 // ─────────────────────────────────────────────
 
-function DebtPage({ debts, setDebts }) {
+function DebtPage({ debts, setDebts, showUndo }) {
   const [modal, setModal] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
 
@@ -3293,7 +3332,7 @@ function DebtPage({ debts, setDebts }) {
     setModal(null);
   };
 
-  const deleteDebt = (id) => { setDebts((prev) => prev.filter((d) => d.id !== id)); setConfirmingDelete(null); };
+  const deleteDebt = (id) => { const debt = debts.find((d) => d.id === id); if (showUndo && debt) showUndo(`Deleted "${debt.name}"`); setDebts((prev) => prev.filter((d) => d.id !== id)); setConfirmingDelete(null); };
 
   return (
     <div>
@@ -3520,7 +3559,7 @@ const ASSET_CATEGORIES = {
   other: { label: "Other", color: "var(--text-muted)", icon: "📦" },
 };
 
-function NetWorthPage({ assets, setAssets, debts }) {
+function NetWorthPage({ assets, setAssets, debts, showUndo }) {
   const [modal, setModal] = useState(null);
 
   const totalAssets = assets.reduce((s, a) => s + a.value, 0);
@@ -3539,7 +3578,7 @@ function NetWorthPage({ assets, setAssets, debts }) {
     key, ...info, total: (groupedAssets[key] || []).reduce((s, a) => s + a.value, 0), count: (groupedAssets[key] || []).length,
   })).filter((c) => c.total > 0);
 
-  const deleteAsset = (id) => setAssets((prev) => prev.filter((a) => a.id !== id));
+  const deleteAsset = (id) => { const asset = assets.find((a) => a.id === id); if (showUndo && asset) showUndo(`Deleted "${asset.name}"`); setAssets((prev) => prev.filter((a) => a.id !== id)); };
   const updateAsset = (updated) => { setAssets((prev) => prev.map((a) => a.id === updated.id ? updated : a)); setModal(null); };
 
   return (
@@ -4803,7 +4842,7 @@ function CalculatorPage() {
 // TRANSACTIONS PAGE
 // ─────────────────────────────────────────────
 
-function TransactionsPage({ transactions, setTransactions, categories }) {
+function TransactionsPage({ transactions, setTransactions, categories, showUndo }) {
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("all");
   const [sortField, setSortField] = useState("date");
@@ -4854,11 +4893,13 @@ function TransactionsPage({ transactions, setTransactions, categories }) {
   };
 
   const deleteSelected = () => {
+    if (showUndo) showUndo(`Deleted ${selected.size} transaction${selected.size !== 1 ? "s" : ""}`);
     setTransactions((prev) => prev.filter((t) => !selected.has(t.id)));
     setSelected(new Set());
   };
 
   const deleteAll = () => {
+    if (showUndo) showUndo(`Deleted all ${transactions.length} transactions`);
     setTransactions([]);
     setSelected(new Set());
     setConfirmDeleteAll(false);
@@ -5944,10 +5985,22 @@ function MonthlySummaryPage({ categories, transactions, income, billTemplates, p
   const prevMonth = () => setViewDate(new Date(year, month - 1, 1));
   const nextMonth = () => setViewDate(new Date(year, month + 1, 1));
 
-  // Current month data (use March as "current")
-  const monthTx = transactions; // In production, filter by month
+  // Filter transactions to viewed month
+  const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
+  const monthTx = transactions.filter((t) => t.date.startsWith(monthKey));
   const totalSpent = monthTx.reduce((s, t) => s + t.amount, 0);
-  const totalIncome = income.reduce((s, i) => s + i.amount, 0);
+  const totalIncome = income.reduce((s, i) => {
+    if (!i.recurring) return s + i.amount;
+    switch (i.frequency) {
+      case "weekly": return s + i.amount * 52 / 12;
+      case "biweekly": return s + i.amount * 26 / 12;
+      case "semimonthly": return s + i.amount * 2;
+      case "monthly": return s + i.amount;
+      case "quarterly": return s + i.amount / 3;
+      case "yearly": return s + i.amount / 12;
+      default: return s + i.amount;
+    }
+  }, 0);
   const monthBills = generateBillInstances(billTemplates, year, month);
   const billsTotal = monthBills.reduce((s, b) => s + b.amount, 0);
   const billsPaid = monthBills.filter((b) => paidDates.has(b.instanceKey)).length;
@@ -6305,7 +6358,7 @@ function SettingsPage({ settings, setSettings, onExport, onImport, onReset, onRe
 // RECURRING TRANSACTIONS PAGE (Auto-Spend)
 // ─────────────────────────────────────────────
 
-function RecurringTransactionsPage({ recurringTransactions, setRecurringTransactions, categories, transactions, setTransactions }) {
+function RecurringTransactionsPage({ recurringTransactions, setRecurringTransactions, categories, transactions, setTransactions, showUndo }) {
   const [modal, setModal] = useState(null);
 
   const catMap = useMemo(() => {
@@ -6410,6 +6463,8 @@ function RecurringTransactionsPage({ recurringTransactions, setRecurringTransact
   };
 
   const deleteTemplate = (id) => {
+    const rt = recurringTransactions.find((r) => r.id === id);
+    if (showUndo && rt) showUndo(`Deleted "${rt.description}"`);
     setRecurringTransactions((prev) => prev.filter((rt) => rt.id !== id));
   };
 
@@ -7056,22 +7111,34 @@ function CategoryCard({ category, transactions, onExpand, isExpanded, onEditTarg
   );
 }
 
-function BudgetPage({ categories, transactions, setCategories, setTransactions, income, budgetTargets, setBudgetTargets, budgetRollovers, setBudgetRollovers }) {
+function BudgetPage({ categories, transactions, setCategories, setTransactions, income, budgetTargets, setBudgetTargets, budgetRollovers, setBudgetRollovers, showUndo }) {
   const [expandedId, setExpandedId] = useState(null);
   const [modal, setModal] = useState(null);
   const [sortBy, setSortBy] = useState("status");
+  const [viewDate, setViewDate] = useState(() => new Date(2026, 2, 1));
 
-  // Current month context
-  const currentMonthKey = "2026-03";
-  const prevMonthKey = "2026-02";
-  const prevMonthName = "February";
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const monthName = viewDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const currentMonthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
+  const prevMonthDate = new Date(year, month - 1, 1);
+  const prevMonthKey = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, "0")}`;
+  const prevMonthName = prevMonthDate.toLocaleDateString("en-US", { month: "long" });
+
+  const prevMonth = () => setViewDate(new Date(year, month - 1, 1));
+  const nextMonth = () => setViewDate(new Date(year, month + 1, 1));
+
+  // Filter transactions to viewed month
+  const monthTransactions = useMemo(() => {
+    return transactions.filter((t) => t.date.startsWith(currentMonthKey));
+  }, [transactions, currentMonthKey]);
 
   const txByCategory = useMemo(() => {
     const map = {};
     categories.forEach((c) => (map[c.id] = []));
-    transactions.forEach((t) => { if (map[t.categoryId]) map[t.categoryId].push(t); });
+    monthTransactions.forEach((t) => { if (map[t.categoryId]) map[t.categoryId].push(t); });
     return map;
-  }, [categories, transactions]);
+  }, [categories, monthTransactions]);
 
   // Current month's rollovers (carried from previous month)
   const currentRollovers = budgetRollovers[currentMonthKey] || {};
@@ -7147,7 +7214,7 @@ function BudgetPage({ categories, transactions, setCategories, setTransactions, 
     const ro = currentRollovers[c.id] || 0;
     return s + base + ro;
   }, 0);
-  const totalSpent = transactions.reduce((s, t) => s + t.amount, 0);
+  const totalSpent = monthTransactions.reduce((s, t) => s + t.amount, 0);
   const unbudgeted = totalIncome - totalBudgeted + totalRolledOver;
   const overCount = categories.filter((c) => {
     const spent = (txByCategory[c.id] || []).reduce((s, t) => s + t.amount, 0);
@@ -7191,13 +7258,24 @@ function BudgetPage({ categories, transactions, setCategories, setTransactions, 
         <div>
           <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em" }}>Budget Tracker</h1>
           <p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--text-muted)" }}>
-            March 2026{targetByDateCount > 0 ? ` · ${targetByDateCount} date target${targetByDateCount > 1 ? "s" : ""}` : ""}
+            {targetByDateCount > 0 ? `${targetByDateCount} date target${targetByDateCount > 1 ? "s" : ""}` : "Track spending by category"}
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={() => setModal("addCat")} style={{ padding: "10px 18px", borderRadius: 10, border: "1px solid var(--border)", background: "transparent", color: "var(--text-secondary)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>+ Category</button>
           <button onClick={() => setModal("addTx")} style={{ padding: "10px 18px", borderRadius: 10, border: "none", background: "var(--accent)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>+ Transaction</button>
         </div>
+      </div>
+
+      {/* Month navigation */}
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 20, marginBottom: 20 }}>
+        <button onClick={prevMonth} style={{ background: "none", border: "1px solid var(--border)", borderRadius: 8, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", cursor: "pointer" }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <span style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)" }}>{monthName}</span>
+        <button onClick={nextMonth} style={{ background: "none", border: "1px solid var(--border)", borderRadius: 8, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", cursor: "pointer" }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
       </div>
 
       {/* Income vs Budget bar */}
@@ -7319,7 +7397,7 @@ function BudgetPage({ categories, transactions, setCategories, setTransactions, 
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 14 }}>
         {sortedCategories.map((cat) => (
-          <SwipeToDelete key={cat.id} onDelete={() => setCategories((prev) => prev.filter((c) => c.id !== cat.id))}>
+          <SwipeToDelete key={cat.id} onDelete={() => { showUndo(`Deleted "${cat.name}" category`); setCategories((prev) => prev.filter((c) => c.id !== cat.id)); }}>
             <CategoryCard category={cat} transactions={txByCategory[cat.id] || []}
               target={budgetTargets[cat.id] || null}
               rollover={currentRollovers[cat.id] || 0}
@@ -7892,6 +7970,7 @@ export default function MaverickOS() {
   const [loaded, setLoaded] = useState(false);
   const [mobileMore, setMobileMore] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [undoToast, setUndoToast] = useState(null); // { message, snapshot }
   const isMobile = useIsMobile();
 
   const [categories, setCategories] = useState(INITIAL_CATEGORIES);
@@ -7909,6 +7988,41 @@ export default function MaverickOS() {
   const [budgetTargets, setBudgetTargets] = useState(INITIAL_BUDGET_TARGETS);
   const [recurringTransactions, setRecurringTransactions] = useState(INITIAL_RECURRING_TRANSACTIONS);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+
+  // Undo system — snapshot current state before destructive actions
+  const takeSnapshot = useCallback(() => ({
+    categories, transactions, income, billTemplates, paidDates, savingsGoals,
+    debts, assets, paycheckStreams, customItems, monthlyRollovers,
+    budgetRollovers, budgetTargets, recurringTransactions, settings,
+  }), [categories, transactions, income, billTemplates, paidDates, savingsGoals, debts, assets, paycheckStreams, customItems, monthlyRollovers, budgetRollovers, budgetTargets, recurringTransactions, settings]);
+
+  const restoreSnapshot = useCallback((snap) => {
+    if (snap.categories) setCategories(snap.categories);
+    if (snap.transactions) setTransactions(snap.transactions);
+    if (snap.income) setIncome(snap.income);
+    if (snap.billTemplates) setBillTemplates(snap.billTemplates);
+    if (snap.paidDates) setPaidDates(snap.paidDates);
+    if (snap.savingsGoals) setSavingsGoals(snap.savingsGoals);
+    if (snap.debts) setDebts(snap.debts);
+    if (snap.assets) setAssets(snap.assets);
+    if (snap.paycheckStreams) setPaycheckStreams(snap.paycheckStreams);
+    if (snap.customItems) setCustomItems(snap.customItems);
+    if (snap.monthlyRollovers) setMonthlyRollovers(snap.monthlyRollovers);
+    if (snap.budgetRollovers) setBudgetRollovers(snap.budgetRollovers);
+    if (snap.budgetTargets) setBudgetTargets(snap.budgetTargets);
+    if (snap.recurringTransactions) setRecurringTransactions(snap.recurringTransactions);
+    if (snap.settings) setSettings(snap.settings);
+  }, []);
+
+  const showUndo = useCallback((message) => {
+    const snapshot = takeSnapshot();
+    setUndoToast({ message, snapshot });
+  }, [takeSnapshot]);
+
+  const handleUndo = useCallback(() => {
+    if (undoToast?.snapshot) restoreSnapshot(undoToast.snapshot);
+    setUndoToast(null);
+  }, [undoToast, restoreSnapshot]);
 
   // Load from localStorage on mount — show onboarding if no saved data
   useEffect(() => {
@@ -8054,7 +8168,7 @@ export default function MaverickOS() {
               savingsGoals={savingsGoals} debts={debts} assets={assets} settings={settings} />
           )}
           {page === "budget" && (
-            <BudgetPage categories={categories} transactions={transactions} setCategories={setCategories} setTransactions={setTransactions} income={income} budgetTargets={budgetTargets} setBudgetTargets={setBudgetTargets} budgetRollovers={budgetRollovers} setBudgetRollovers={setBudgetRollovers} />
+            <BudgetPage categories={categories} transactions={transactions} setCategories={setCategories} setTransactions={setTransactions} income={income} budgetTargets={budgetTargets} setBudgetTargets={setBudgetTargets} budgetRollovers={budgetRollovers} setBudgetRollovers={setBudgetRollovers} showUndo={showUndo} />
           )}
           {page === "calendar" && (
             <CalendarPage billTemplates={billTemplates} setBillTemplates={setBillTemplates}
@@ -8062,14 +8176,14 @@ export default function MaverickOS() {
           )}
           {page === "recurring" && (
             <RecurringBillsPage billTemplates={billTemplates} setBillTemplates={setBillTemplates}
-              paidDates={paidDates} onNavigate={setPage} />
+              paidDates={paidDates} onNavigate={setPage} showUndo={showUndo} />
           )}
           {page === "autospend" && (
             <RecurringTransactionsPage recurringTransactions={recurringTransactions} setRecurringTransactions={setRecurringTransactions}
-              categories={categories} transactions={transactions} setTransactions={setTransactions} />
+              categories={categories} transactions={transactions} setTransactions={setTransactions} showUndo={showUndo} />
           )}
           {page === "savings" && (
-            <SavingsPage savingsGoals={savingsGoals} setSavingsGoals={setSavingsGoals} />
+            <SavingsPage savingsGoals={savingsGoals} setSavingsGoals={setSavingsGoals} showUndo={showUndo} />
           )}
           {page === "paycheck" && (
             <PaycheckPlannerPage paycheckStreams={paycheckStreams} setPaycheckStreams={setPaycheckStreams}
@@ -8079,13 +8193,13 @@ export default function MaverickOS() {
               income={income} />
           )}
           {page === "income" && (
-            <IncomePage income={income} setIncome={setIncome} />
+            <IncomePage income={income} setIncome={setIncome} showUndo={showUndo} />
           )}
           {page === "debt" && (
-            <DebtPage debts={debts} setDebts={setDebts} />
+            <DebtPage debts={debts} setDebts={setDebts} showUndo={showUndo} />
           )}
           {page === "networth" && (
-            <NetWorthPage assets={assets} setAssets={setAssets} debts={debts} />
+            <NetWorthPage assets={assets} setAssets={setAssets} debts={debts} showUndo={showUndo} />
           )}
           {page === "strategy" && (
             <DebtStrategyPage debts={debts} income={income} />
@@ -8098,7 +8212,7 @@ export default function MaverickOS() {
             <CalculatorPage />
           )}
           {page === "transactions" && (
-            <TransactionsPage transactions={transactions} setTransactions={setTransactions} categories={categories} />
+            <TransactionsPage transactions={transactions} setTransactions={setTransactions} categories={categories} showUndo={showUndo} />
           )}
           {page === "summary" && (
             <MonthlySummaryPage categories={categories} transactions={transactions} income={income}
@@ -8118,6 +8232,15 @@ export default function MaverickOS() {
           )}
         </div>
       </main>
+
+      {/* Undo Toast */}
+      {undoToast && (
+        <UndoToast
+          message={undoToast.message}
+          onUndo={handleUndo}
+          onDismiss={() => setUndoToast(null)}
+        />
+      )}
 
       {/* Floating Action Button — quick add transaction from any page */}
       <FloatingActionButton categories={categories} onAddTransaction={(tx) => setTransactions((p) => [...p, tx])} />
