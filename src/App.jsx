@@ -2592,7 +2592,7 @@ function formatShortDate(date) {
   return { month: months[date.getMonth()], day: date.getDate() };
 }
 
-function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplates, savingsGoals, setSavingsGoals, paidDates, customItems, setCustomItems, monthlyRollovers, setMonthlyRollovers, income, settings, setSettings }) {
+function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplates, savingsGoals, setSavingsGoals, paidDates, setPaidDates, customItems, setCustomItems, monthlyRollovers, setMonthlyRollovers, income, settings, setSettings }) {
   const [viewDate, setViewDate] = useState(() => new Date());
   const [showAddStream, setShowAddStream] = useState(false);
   const [showAddItem, setShowAddItem] = useState(null);
@@ -2698,7 +2698,7 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
       bills.forEach((bill) => {
         const isPaid = paidDates.has(bill.instanceKey);
         const billDate = new Date(bill.instanceDate + "T00:00:00");
-        lines.push({ type: "bill", name: bill.name, amount: bill.amount, dateInfo: formatShortDate(billDate), isPaid, recurring: bill.recurring, frequency: bill.frequency, rawDate: billDate });
+        lines.push({ type: "bill", name: bill.name, amount: bill.amount, dateInfo: formatShortDate(billDate), isPaid, recurring: bill.recurring, frequency: bill.frequency, rawDate: billDate, instanceKey: bill.instanceKey });
       });
       // Savings (manually added by user)
       customSavings.forEach((cs) => {
@@ -2775,12 +2775,76 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
     setCustomItems((prev) => ({ ...prev, [paycheckKey]: (prev[paycheckKey] || []).filter((i) => i.id !== itemId) }));
   };
 
-  // Waterfall row component
+  // Toggle bill paid status
+  const toggleBillPaid = useCallback((instanceKey) => {
+    setPaidDates((prev) => {
+      const next = new Set(prev);
+      if (next.has(instanceKey)) next.delete(instanceKey);
+      else next.add(instanceKey);
+      return next;
+    });
+  }, [setPaidDates]);
+
+  // Waterfall row component with swipe-right-to-pay for bills
   const WaterfallRow = ({ line, paycheckKey, isLast, isFirst, onMoveUp, onMoveDown }) => {
     const isIncome = line.isIncome;
     const canRemove = line.customId != null;
     const isBill = line.type === "bill";
     const isSavings = line.type === "savings";
+    const canSwipePaid = isBill && line.instanceKey;
+
+    // Swipe state for paid toggle
+    const swipeStartX = useRef(0);
+    const swipeCurrentX = useRef(0);
+    const [swipeOffset, setSwipeOffset] = useState(0);
+    const [isSwiping, setIsSwiping] = useState(false);
+    const didSwipe = useRef(false);
+    const SWIPE_THRESHOLD = 70;
+    const SWIPE_MIN = 8;
+
+    const handleSwipeStart = useCallback((clientX) => {
+      if (!canSwipePaid) return;
+      swipeStartX.current = clientX;
+      swipeCurrentX.current = clientX;
+      didSwipe.current = false;
+      setIsSwiping(true);
+    }, [canSwipePaid]);
+
+    const handleSwipeMove = useCallback((clientX) => {
+      if (!isSwiping || !canSwipePaid) return;
+      swipeCurrentX.current = clientX;
+      const dx = clientX - swipeStartX.current;
+      if (Math.abs(dx) > SWIPE_MIN) didSwipe.current = true;
+      // Allow swipe right only (positive dx)
+      if (dx > 0) setSwipeOffset(Math.min(dx, 120));
+    }, [isSwiping, canSwipePaid]);
+
+    const handleSwipeEnd = useCallback(() => {
+      if (!isSwiping) return;
+      setIsSwiping(false);
+      const dx = swipeCurrentX.current - swipeStartX.current;
+      if (dx > SWIPE_THRESHOLD && canSwipePaid) {
+        toggleBillPaid(line.instanceKey);
+      }
+      setSwipeOffset(0);
+    }, [isSwiping, canSwipePaid, line.instanceKey, toggleBillPaid]);
+
+    const onTouchStart = useCallback((e) => handleSwipeStart(e.touches[0].clientX), [handleSwipeStart]);
+    const onTouchMove = useCallback((e) => handleSwipeMove(e.touches[0].clientX), [handleSwipeMove]);
+    const onTouchEnd = useCallback(() => handleSwipeEnd(), [handleSwipeEnd]);
+
+    const onMouseDown = useCallback((e) => {
+      if (!canSwipePaid) return;
+      handleSwipeStart(e.clientX);
+      const onMM = (ev) => handleSwipeMove(ev.clientX);
+      const onMU = () => { document.removeEventListener("mousemove", onMM); document.removeEventListener("mouseup", onMU); handleSwipeEnd(); };
+      document.addEventListener("mousemove", onMM);
+      document.addEventListener("mouseup", onMU);
+    }, [canSwipePaid, handleSwipeStart, handleSwipeMove, handleSwipeEnd]);
+
+    const onClickCapture = useCallback((e) => {
+      if (didSwipe.current) { e.stopPropagation(); e.preventDefault(); didSwipe.current = false; }
+    }, []);
 
     const arrowBtn = (direction, onClick, disabled) => (
       <button onClick={(e) => { e.stopPropagation(); if (!disabled) onClick(); }}
@@ -2798,61 +2862,96 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
       </button>
     );
 
+    // Paid reveal intensity for visual feedback
+    const revealPct = canSwipePaid ? Math.min(swipeOffset / SWIPE_THRESHOLD, 1) : 0;
+
     return (
-      <div style={{
-        display: "grid", gridTemplateColumns: "28px 48px 1fr auto",
-        alignItems: "center", padding: "10px 16px 10px 4px",
-        borderBottom: isLast ? "none" : "1px solid var(--border-subtle)",
-        background: isIncome ? "var(--green-bg)" : "transparent",
-      }}>
-        {/* Reorder arrows */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
-          {arrowBtn("up", onMoveUp, isFirst)}
-          {arrowBtn("down", onMoveDown, isLast)}
-        </div>
-
-        {/* Date column */}
-        <div style={{ textAlign: "center", lineHeight: 1.2 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>{line.dateInfo.month}</div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-muted)" }}>{line.dateInfo.day}</div>
-        </div>
-
-        {/* Name column */}
-        <div style={{ paddingLeft: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            {isIncome && <span style={{ width: 8, height: 8, borderRadius: 2, background: line.color || "var(--green)" }} />}
-            {isSavings && <span style={{ width: 8, height: 8, borderRadius: 2, background: line.color || "var(--accent)" }} />}
-            {line.isPaid && (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-            )}
-            <span style={{
-              fontSize: 15, fontWeight: 600,
-              color: line.isPaid ? "var(--text-muted)" : "var(--text-primary)",
-              textDecoration: line.isPaid ? "line-through" : "none",
-            }}>{line.name}</span>
-            {isBill && line.recurring && line.frequency && (
-              <FrequencyBadge frequency={line.frequency} />
-            )}
-            {canRemove && (
-              <button onClick={() => removeCustomItem(paycheckKey, line.customId)}
-                style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: 0, fontSize: 16, lineHeight: 1 }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = "var(--red)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
-              >×</button>
-            )}
-          </div>
-        </div>
-
-        {/* Amount + Balance column */}
-        <div style={{ textAlign: "right", minWidth: 100 }}>
+      <div style={{ position: "relative", overflow: "hidden" }}>
+        {/* Paid/Unpaid reveal behind (left side, shown when swiping right) */}
+        {canSwipePaid && (
           <div style={{
-            fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums",
-            color: isIncome ? "var(--green)" : "var(--red)",
+            position: "absolute", top: 0, left: 0, bottom: 0, width: 120,
+            background: line.isPaid ? "var(--amber)" : "var(--green)",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 6, zIndex: 1,
+            opacity: Math.max(revealPct, 0.6),
           }}>
-            {isIncome ? "+" : "-"}{fmt(line.amount)}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              {line.isPaid ? <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></> : <polyline points="20 6 9 17 4 12"/>}
+            </svg>
+            <span style={{ color: "#fff", fontSize: 12, fontWeight: 700 }}>{line.isPaid ? "Unpay" : "Paid"}</span>
           </div>
-          <div style={{ fontSize: 16, fontWeight: 700, fontVariantNumeric: "tabular-nums", color: line.balance < 0 ? "var(--red)" : "var(--text-primary)" }}>
-            {fmt(line.balance)}
+        )}
+        {/* Slideable row content */}
+        <div
+          onTouchStart={canSwipePaid ? onTouchStart : undefined}
+          onTouchMove={canSwipePaid ? onTouchMove : undefined}
+          onTouchEnd={canSwipePaid ? onTouchEnd : undefined}
+          onMouseDown={canSwipePaid ? onMouseDown : undefined}
+          onClickCapture={canSwipePaid ? onClickCapture : undefined}
+          style={{
+            display: "grid", gridTemplateColumns: "28px 48px 1fr auto",
+            alignItems: "center", padding: "10px 16px 10px 4px",
+            borderBottom: isLast ? "none" : "1px solid var(--border-subtle)",
+            background: isIncome ? "var(--green-bg)" : line.isPaid ? "var(--surface)" : "var(--card)",
+            transform: `translateX(${swipeOffset}px)`,
+            transition: isSwiping ? "none" : "transform 0.3s cubic-bezier(0.22,1,0.36,1)",
+            position: "relative", zIndex: 2, userSelect: "none",
+            cursor: canSwipePaid ? "grab" : "default",
+          }}
+        >
+          {/* Reorder arrows */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
+            {arrowBtn("up", onMoveUp, isFirst)}
+            {arrowBtn("down", onMoveDown, isLast)}
+          </div>
+
+          {/* Date column */}
+          <div style={{ textAlign: "center", lineHeight: 1.2 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>{line.dateInfo.month}</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-muted)" }}>{line.dateInfo.day}</div>
+          </div>
+
+          {/* Name column */}
+          <div style={{ paddingLeft: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              {isIncome && <span style={{ width: 8, height: 8, borderRadius: 2, background: line.color || "var(--green)" }} />}
+              {isSavings && <span style={{ width: 8, height: 8, borderRadius: 2, background: line.color || "var(--accent)" }} />}
+              {isBill && (
+                <span style={{
+                  width: 8, height: 8, borderRadius: "50%",
+                  background: line.isPaid ? "var(--green)" : "var(--border-hover)",
+                  transition: "background 0.2s",
+                }} />
+              )}
+              <span style={{
+                fontSize: 15, fontWeight: 600,
+                color: line.isPaid ? "var(--text-muted)" : "var(--text-primary)",
+                textDecoration: line.isPaid ? "line-through" : "none",
+              }}>{line.name}</span>
+              {isBill && line.recurring && line.frequency && (
+                <FrequencyBadge frequency={line.frequency} />
+              )}
+              {canRemove && (
+                <button onClick={() => removeCustomItem(paycheckKey, line.customId)}
+                  style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: 0, fontSize: 16, lineHeight: 1 }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = "var(--red)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
+                >×</button>
+              )}
+            </div>
+          </div>
+
+          {/* Amount + Balance column */}
+          <div style={{ textAlign: "right", minWidth: 100 }}>
+            <div style={{
+              fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums",
+              color: isIncome ? "var(--green)" : line.isPaid ? "var(--text-muted)" : "var(--red)",
+            }}>
+              {isIncome ? "+" : "-"}{fmt(line.amount)}
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 700, fontVariantNumeric: "tabular-nums", color: line.balance < 0 ? "var(--red)" : "var(--text-primary)" }}>
+              {fmt(line.balance)}
+            </div>
           </div>
         </div>
       </div>
@@ -8399,7 +8498,7 @@ export default function MaverickOS() {
           )}
           {page === "paycheck" && (
             <PaycheckPlannerPage paycheckStreams={paycheckStreams} setPaycheckStreams={setPaycheckStreams}
-              billTemplates={billTemplates} savingsGoals={savingsGoals} setSavingsGoals={setSavingsGoals} paidDates={paidDates}
+              billTemplates={billTemplates} savingsGoals={savingsGoals} setSavingsGoals={setSavingsGoals} paidDates={paidDates} setPaidDates={setPaidDates}
               customItems={customItems} setCustomItems={setCustomItems}
               monthlyRollovers={monthlyRollovers} setMonthlyRollovers={setMonthlyRollovers}
               income={income} settings={settings} setSettings={setSettings} />
