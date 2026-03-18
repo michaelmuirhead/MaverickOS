@@ -43,10 +43,349 @@ const DEFAULT_SETTINGS = {
   notifications: { billsDue: true, budgetAlert: true, monthlyRecap: true, savingsGoal: true },
 };
 
-// Color theme palettes — each defines dark and light CSS variable sets
+// ─── RETRO / NOSTALGIC ────────────────────────────────────────────────────────
+const RETRO_THEMES = {
+  terminal: {
+    label: "Terminal Green", preview: ["#00ff41", "#003b00", "#0d0d0d"],
+    dark: {
+      "--bg": "#0d0d0d", "--card": "#0a1a0a", "--surface": "#060e06", "--sidebar": "#080f08",
+      "--border": "#00ff4130", "--border-hover": "#00ff4160", "--border-subtle": "#00ff4118",
+      "--track": "#001800", "--nav-active": "#001f00", "--nav-hover": "#001500",
+      "--text-primary": "#00ff41", "--text-secondary": "#00cc33", "--text-muted": "#007a1e",
+      "--icon-bg": "#001a00",
+      "--green": "#00ff41", "--green-bg": "#00ff4118",
+      "--amber": "#ffff00", "--amber-bg": "#ffff0018",
+      "--red": "#ff3333", "--red-bg": "#ff333318",
+      "--accent": "#00ff41",
+      "--shadow": "rgba(0,255,65,0.08)", "--shadow-heavy": "rgba(0,255,65,0.2)",
+    },
+    light: {
+      "--bg": "#f0fff4", "--card": "#ffffff", "--surface": "#f5fff8", "--sidebar": "#e8ffee",
+      "--border": "#00aa2a", "--border-hover": "#008020", "--border-subtle": "#cceecc",
+      "--track": "#ddffdd", "--nav-active": "#d0ffd0", "--nav-hover": "#e4ffe4",
+      "--text-primary": "#002200", "--text-secondary": "#006620", "--text-muted": "#339944",
+      "--icon-bg": "#d0ffd0",
+      "--green": "#00aa2a", "--green-bg": "#00aa2a18",
+      "--amber": "#886600", "--amber-bg": "#88660018",
+      "--red": "#cc0000", "--red-bg": "#cc000018",
+      "--accent": "#008822",
+      "--shadow": "rgba(0,100,30,0.08)", "--shadow-heavy": "rgba(0,100,30,0.18)",
+    },
+  },
+  synthwave: {
+    label: "Synthwave", preview: ["#ff2d78", "#00f0ff", "#7b2fff"],
+    dark: {
+      "--bg": "#0d0015", "--card": "#160a28", "--surface": "#100520", "--sidebar": "#0e0420",
+      "--border": "#7b2fff40", "--border-hover": "#7b2fff80", "--border-subtle": "#7b2fff20",
+      "--track": "#1a0a30", "--nav-active": "#1e0a38", "--nav-hover": "#18082e",
+      "--text-primary": "#f0e0ff", "--text-secondary": "#c090ff", "--text-muted": "#8050c0",
+      "--icon-bg": "#1e0a38",
+      "--green": "#00f0ff", "--green-bg": "#00f0ff18",
+      "--amber": "#ffb800", "--amber-bg": "#ffb80018",
+      "--red": "#ff2d78", "--red-bg": "#ff2d7818",
+      "--accent": "#ff2d78",
+      "--shadow": "rgba(123,47,255,0.2)", "--shadow-heavy": "rgba(123,47,255,0.5)",
+    },
+    light: {
+      "--bg": "#fdf0ff", "--card": "#fff8ff", "--surface": "#f8eeff", "--sidebar": "#f2e4ff",
+      "--border": "#c060ff", "--border-hover": "#a030ee", "--border-subtle": "#e8c8ff",
+      "--track": "#eedcff", "--nav-active": "#ead4ff", "--nav-hover": "#f0e0ff",
+      "--text-primary": "#1a002e", "--text-secondary": "#6600aa", "--text-muted": "#9940cc",
+      "--icon-bg": "#ead4ff",
+      "--green": "#007acc", "--green-bg": "#007acc18",
+      "--amber": "#cc7700", "--amber-bg": "#cc770018",
+      "--red": "#cc0055", "--red-bg": "#cc005518",
+      "--accent": "#9900dd",
+      "--shadow": "rgba(100,0,180,0.10)", "--shadow-heavy": "rgba(100,0,180,0.22)",
+    },
+  },
+  newspaper: {
+    label: "Newspaper", preview: ["#1a1a1a", "#f5f0e8", "#8b0000"],
+    dark: {
+      "--bg": "#111008", "--card": "#1c1a10", "--surface": "#161408", "--sidebar": "#141208",
+      "--border": "#3a3820", "--border-hover": "#5a5630", "--border-subtle": "#282618",
+      "--track": "#282618", "--nav-active": "#2c2a18", "--nav-hover": "#222010",
+      "--text-primary": "#f0ead8", "--text-secondary": "#c8c0a0", "--text-muted": "#888060",
+      "--icon-bg": "#2c2a18",
+      "--green": "#3a7a3a", "--green-bg": "#3a7a3a18",
+      "--amber": "#aa8800", "--amber-bg": "#aa880018",
+      "--red": "#8b0000", "--red-bg": "#8b000018",
+      "--accent": "#8b0000",
+      "--shadow": "rgba(0,0,0,0.4)", "--shadow-heavy": "rgba(0,0,0,0.7)",
+    },
+    light: {
+      "--bg": "#f5f0e8", "--card": "#faf7f0", "--surface": "#f0ebe0", "--sidebar": "#ece6d8",
+      "--border": "#2a2a2a", "--border-hover": "#111111", "--border-subtle": "#c8c0a8",
+      "--track": "#d8d0b8", "--nav-active": "#e4dcc8", "--nav-hover": "#ece4d0",
+      "--text-primary": "#111008", "--text-secondary": "#3a3828", "--text-muted": "#6a6848",
+      "--icon-bg": "#e4dcc8",
+      "--green": "#1a5c1a", "--green-bg": "#1a5c1a18",
+      "--amber": "#8b6600", "--amber-bg": "#8b660018",
+      "--red": "#8b0000", "--red-bg": "#8b000018",
+      "--accent": "#8b0000",
+      "--shadow": "rgba(0,0,0,0.12)", "--shadow-heavy": "rgba(0,0,0,0.28)",
+    },
+  },
+  blueprint: {
+    label: "Blueprint", preview: ["#ffffff", "#1a3a6e", "#4a90d9"],
+    dark: {
+      "--bg": "#0c1e3a", "--card": "#102448", "--surface": "#0a1c36", "--sidebar": "#091830",
+      "--border": "#4a90d940", "--border-hover": "#4a90d980", "--border-subtle": "#4a90d920",
+      "--track": "#0e2040", "--nav-active": "#122848", "--nav-hover": "#0e2040",
+      "--text-primary": "#e8f4ff", "--text-secondary": "#90c4f0", "--text-muted": "#5090c0",
+      "--icon-bg": "#122848",
+      "--green": "#40d0a0", "--green-bg": "#40d0a018",
+      "--amber": "#f0c040", "--amber-bg": "#f0c04018",
+      "--red": "#f04060", "--red-bg": "#f0406018",
+      "--accent": "#4a90d9",
+      "--shadow": "rgba(0,20,60,0.4)", "--shadow-heavy": "rgba(0,20,60,0.7)",
+    },
+    light: {
+      "--bg": "#1a3a6e", "--card": "#1e4480", "--surface": "#163260", "--sidebar": "#142e58",
+      "--border": "#ffffff40", "--border-hover": "#ffffff80", "--border-subtle": "#ffffff20",
+      "--track": "#163060", "--nav-active": "#204888", "--nav-hover": "#1c3e78",
+      "--text-primary": "#ffffff", "--text-secondary": "#b0d4f8", "--text-muted": "#7090c0",
+      "--icon-bg": "#204888",
+      "--green": "#40ffcc", "--green-bg": "#40ffcc18",
+      "--amber": "#ffd040", "--amber-bg": "#ffd04018",
+      "--red": "#ff6080", "--red-bg": "#ff608018",
+      "--accent": "#60b8ff",
+      "--shadow": "rgba(0,10,40,0.4)", "--shadow-heavy": "rgba(0,10,40,0.7)",
+    },
+  },
+};
+
+// ─── CULTURAL / HISTORICAL ────────────────────────────────────────────────────
+const CULTURAL_THEMES = {
+  art_deco: {
+    label: "Art Deco", preview: ["#c9a84c", "#1a1a2e", "#e8e0c8"],
+    dark: {
+      "--bg": "#0e0e18", "--card": "#16162a", "--surface": "#111120", "--sidebar": "#0e0e20",
+      "--border": "#c9a84c40", "--border-hover": "#c9a84c80", "--border-subtle": "#c9a84c20",
+      "--track": "#1a1a30", "--nav-active": "#1e1e36", "--nav-hover": "#18182c",
+      "--text-primary": "#f0e8cc", "--text-secondary": "#c9a84c", "--text-muted": "#806830",
+      "--icon-bg": "#1e1e36",
+      "--green": "#40c080", "--green-bg": "#40c08018",
+      "--amber": "#c9a84c", "--amber-bg": "#c9a84c18",
+      "--red": "#c04040", "--red-bg": "#c0404018",
+      "--accent": "#c9a84c",
+      "--shadow": "rgba(0,0,0,0.4)", "--shadow-heavy": "rgba(0,0,0,0.7)",
+    },
+    light: {
+      "--bg": "#f8f4e8", "--card": "#fdfaf0", "--surface": "#f4f0e0", "--sidebar": "#ece4cc",
+      "--border": "#c9a84c", "--border-hover": "#a88030", "--border-subtle": "#e8d8a0",
+      "--track": "#e8d8a0", "--nav-active": "#f0e4b0", "--nav-hover": "#f4eccc",
+      "--text-primary": "#1a1408", "--text-secondary": "#4a3810", "--text-muted": "#806830",
+      "--icon-bg": "#f0e4b0",
+      "--green": "#1a7a40", "--green-bg": "#1a7a4018",
+      "--amber": "#a07800", "--amber-bg": "#a0780018",
+      "--red": "#9a2020", "--red-bg": "#9a202018",
+      "--accent": "#9a6800",
+      "--shadow": "rgba(60,40,0,0.12)", "--shadow-heavy": "rgba(60,40,0,0.28)",
+    },
+  },
+  ancient_egypt: {
+    label: "Ancient Egypt", preview: ["#d4af37", "#1a3a5c", "#c44a1a"],
+    dark: {
+      "--bg": "#0a0e18", "--card": "#101828", "--surface": "#0c1420", "--sidebar": "#091218",
+      "--border": "#d4af3740", "--border-hover": "#d4af3780", "--border-subtle": "#d4af3720",
+      "--track": "#0e1830", "--nav-active": "#121e36", "--nav-hover": "#0e182c",
+      "--text-primary": "#f8e8b0", "--text-secondary": "#d4af37", "--text-muted": "#886620",
+      "--icon-bg": "#121e36",
+      "--green": "#40c0a0", "--green-bg": "#40c0a018",
+      "--amber": "#d4af37", "--amber-bg": "#d4af3718",
+      "--red": "#c44a1a", "--red-bg": "#c44a1a18",
+      "--accent": "#d4af37",
+      "--shadow": "rgba(0,0,0,0.5)", "--shadow-heavy": "rgba(0,0,0,0.8)",
+    },
+    light: {
+      "--bg": "#f5e8c0", "--card": "#fdf4d0", "--surface": "#f0e0b0", "--sidebar": "#e8d4a0",
+      "--border": "#c44a1a", "--border-hover": "#a03a10", "--border-subtle": "#e8c080",
+      "--track": "#e8c080", "--nav-active": "#f0d090", "--nav-hover": "#f4dca8",
+      "--text-primary": "#1a0c00", "--text-secondary": "#5a2a00", "--text-muted": "#8a5a20",
+      "--icon-bg": "#f0d090",
+      "--green": "#1a7a5a", "--green-bg": "#1a7a5a18",
+      "--amber": "#9a7000", "--amber-bg": "#9a700018",
+      "--red": "#c44a1a", "--red-bg": "#c44a1a18",
+      "--accent": "#c44a1a",
+      "--shadow": "rgba(80,40,0,0.15)", "--shadow-heavy": "rgba(80,40,0,0.3)",
+    },
+  },
+  neon_tokyo: {
+    label: "Neon Tokyo", preview: ["#ff0080", "#00ffcc", "#ff8800"],
+    dark: {
+      "--bg": "#080810", "--card": "#0e0e1c", "--surface": "#0a0a16", "--sidebar": "#080812",
+      "--border": "#ff008030", "--border-hover": "#ff008070", "--border-subtle": "#ff008018",
+      "--track": "#0c0c1a", "--nav-active": "#100c20", "--nav-hover": "#0c0a18",
+      "--text-primary": "#f0f0ff", "--text-secondary": "#a080c0", "--text-muted": "#604880",
+      "--icon-bg": "#100c20",
+      "--green": "#00ffcc", "--green-bg": "#00ffcc18",
+      "--amber": "#ff8800", "--amber-bg": "#ff880018",
+      "--red": "#ff0080", "--red-bg": "#ff008018",
+      "--accent": "#ff0080",
+      "--shadow": "rgba(255,0,128,0.15)", "--shadow-heavy": "rgba(255,0,128,0.35)",
+    },
+    light: {
+      "--bg": "#fff0f8", "--card": "#ffffff", "--surface": "#fef0fa", "--sidebar": "#fce8f4",
+      "--border": "#ff0080", "--border-hover": "#cc0060", "--border-subtle": "#ffc0e0",
+      "--track": "#ffdcee", "--nav-active": "#ffd4e8", "--nav-hover": "#ffe4f0",
+      "--text-primary": "#100010", "--text-secondary": "#600040", "--text-muted": "#a04080",
+      "--icon-bg": "#ffd4e8",
+      "--green": "#008866", "--green-bg": "#00886618",
+      "--amber": "#cc5500", "--amber-bg": "#cc550018",
+      "--red": "#cc0055", "--red-bg": "#cc005518",
+      "--accent": "#cc0066",
+      "--shadow": "rgba(200,0,100,0.10)", "--shadow-heavy": "rgba(200,0,100,0.22)",
+    },
+  },
+};
+
+// ─── PLAYFUL ─────────────────────────────────────────────────────────────────
+const PLAYFUL_THEMES = {
+  crayon: {
+    label: "Crayon", preview: ["#ff6b9d", "#ffd93d", "#6bcb77"],
+    dark: {
+      "--bg": "#1a1025", "--card": "#221830", "--surface": "#1c1228", "--sidebar": "#180e22",
+      "--border": "#ff6b9d40", "--border-hover": "#ff6b9d80", "--border-subtle": "#ff6b9d20",
+      "--track": "#1e1230", "--nav-active": "#241838", "--nav-hover": "#1e1430",
+      "--text-primary": "#fff0f8", "--text-secondary": "#ff6b9d", "--text-muted": "#a04070",
+      "--icon-bg": "#241838",
+      "--green": "#6bcb77", "--green-bg": "#6bcb7718",
+      "--amber": "#ffd93d", "--amber-bg": "#ffd93d18",
+      "--red": "#ff6b6b", "--red-bg": "#ff6b6b18",
+      "--accent": "#ff6b9d",
+      "--shadow": "rgba(0,0,0,0.3)", "--shadow-heavy": "rgba(0,0,0,0.6)",
+    },
+    light: {
+      "--bg": "#fffbf0", "--card": "#ffffff", "--surface": "#fff8ee", "--sidebar": "#fff0e8",
+      "--border": "#ffb3d1", "--border-hover": "#ff80b0", "--border-subtle": "#ffe8f4",
+      "--track": "#ffe8f4", "--nav-active": "#ffd8ec", "--nav-hover": "#ffeef6",
+      "--text-primary": "#2a1020", "--text-secondary": "#7a2050", "--text-muted": "#b06080",
+      "--icon-bg": "#ffd8ec",
+      "--green": "#2a9a40", "--green-bg": "#2a9a4018",
+      "--amber": "#cc8800", "--amber-bg": "#cc880018",
+      "--red": "#e83050", "--red-bg": "#e8305018",
+      "--accent": "#e83080",
+      "--shadow": "rgba(200,80,120,0.10)", "--shadow-heavy": "rgba(200,80,120,0.22)",
+    },
+  },
+  chalkboard: {
+    label: "Chalkboard", preview: ["#ffffff", "#2d5a27", "#f5e642"],
+    dark: {
+      "--bg": "#1a2e1a", "--card": "#223822", "--surface": "#1c3020", "--sidebar": "#182a18",
+      "--border": "#ffffff30", "--border-hover": "#ffffff60", "--border-subtle": "#ffffff18",
+      "--track": "#1e3020", "--nav-active": "#243e24", "--nav-hover": "#1e3820",
+      "--text-primary": "#f0f8f0", "--text-secondary": "#c0e0c0", "--text-muted": "#7aa07a",
+      "--icon-bg": "#243e24",
+      "--green": "#80e880", "--green-bg": "#80e88018",
+      "--amber": "#f5e642", "--amber-bg": "#f5e64218",
+      "--red": "#ff8080", "--red-bg": "#ff808018",
+      "--accent": "#f5e642",
+      "--shadow": "rgba(0,0,0,0.5)", "--shadow-heavy": "rgba(0,0,0,0.8)",
+    },
+    light: {
+      "--bg": "#2d5a27", "--card": "#355e30", "--surface": "#28521e", "--sidebar": "#244a1a",
+      "--border": "#ffffff50", "--border-hover": "#ffffffa0", "--border-subtle": "#ffffff28",
+      "--track": "#244a1a", "--nav-active": "#3a6834", "--nav-hover": "#305828",
+      "--text-primary": "#f8fff8", "--text-secondary": "#c8f0c0", "--text-muted": "#88c080",
+      "--icon-bg": "#3a6834",
+      "--green": "#a0ffa0", "--green-bg": "#a0ffa018",
+      "--amber": "#f5e642", "--amber-bg": "#f5e64218",
+      "--red": "#ff8080", "--red-bg": "#ff808018",
+      "--accent": "#f5e642",
+      "--shadow": "rgba(0,0,0,0.4)", "--shadow-heavy": "rgba(0,0,0,0.7)",
+    },
+  },
+  lego: {
+    label: "LEGO", preview: ["#e3000b", "#ffcd00", "#006cb7"],
+    dark: {
+      "--bg": "#0a0a0a", "--card": "#141414", "--surface": "#0e0e0e", "--sidebar": "#111111",
+      "--border": "#e3000b", "--border-hover": "#ff2020", "--border-subtle": "#e3000b40",
+      "--track": "#1e1e1e", "--nav-active": "#1a0000", "--nav-hover": "#160000",
+      "--text-primary": "#ffffff", "--text-secondary": "#ffcd00", "--text-muted": "#888888",
+      "--icon-bg": "#1a0000",
+      "--green": "#00a650", "--green-bg": "#00a65018",
+      "--amber": "#ffcd00", "--amber-bg": "#ffcd0018",
+      "--red": "#e3000b", "--red-bg": "#e3000b18",
+      "--accent": "#e3000b",
+      "--shadow": "rgba(0,0,0,0.5)", "--shadow-heavy": "rgba(0,0,0,0.8)",
+    },
+    light: {
+      "--bg": "#f5f5f5", "--card": "#ffffff", "--surface": "#eeeeee", "--sidebar": "#e8e8e8",
+      "--border": "#006cb7", "--border-hover": "#004e8a", "--border-subtle": "#b8d4ec",
+      "--track": "#d0e8f8", "--nav-active": "#c8e0f4", "--nav-hover": "#d8ecf8",
+      "--text-primary": "#111111", "--text-secondary": "#006cb7", "--text-muted": "#5a5a5a",
+      "--icon-bg": "#c8e0f4",
+      "--green": "#00a650", "--green-bg": "#00a65018",
+      "--amber": "#cc9900", "--amber-bg": "#cc990018",
+      "--red": "#e3000b", "--red-bg": "#e3000b18",
+      "--accent": "#e3000b",
+      "--shadow": "rgba(0,0,0,0.10)", "--shadow-heavy": "rgba(0,0,0,0.22)",
+    },
+  },
+};
+
+// ─── MODERN / MINIMAL ─────────────────────────────────────────────────────────
+const MINIMAL_THEMES = {
+  swiss: {
+    label: "Swiss Modernist", preview: ["#e63312", "#111111", "#ffffff"],
+    dark: {
+      "--bg": "#0a0a0a", "--card": "#141414", "--surface": "#0e0e0e", "--sidebar": "#111111",
+      "--border": "#2a2a2a", "--border-hover": "#444444", "--border-subtle": "#1e1e1e",
+      "--track": "#1e1e1e", "--nav-active": "#1a0000", "--nav-hover": "#161616",
+      "--text-primary": "#ffffff", "--text-secondary": "#999999", "--text-muted": "#555555",
+      "--icon-bg": "#1a1a1a",
+      "--green": "#00cc44", "--green-bg": "#00cc4418",
+      "--amber": "#ffaa00", "--amber-bg": "#ffaa0018",
+      "--red": "#e63312", "--red-bg": "#e6331218",
+      "--accent": "#e63312",
+      "--shadow": "rgba(0,0,0,0.5)", "--shadow-heavy": "rgba(0,0,0,0.8)",
+    },
+    light: {
+      "--bg": "#ffffff", "--card": "#ffffff", "--surface": "#f5f5f5", "--sidebar": "#f0f0f0",
+      "--border": "#111111", "--border-hover": "#000000", "--border-subtle": "#cccccc",
+      "--track": "#e0e0e0", "--nav-active": "#ffe8e4", "--nav-hover": "#f5f5f5",
+      "--text-primary": "#111111", "--text-secondary": "#555555", "--text-muted": "#999999",
+      "--icon-bg": "#ffe8e4",
+      "--green": "#007722", "--green-bg": "#00772218",
+      "--amber": "#cc7700", "--amber-bg": "#cc770018",
+      "--red": "#e63312", "--red-bg": "#e6331218",
+      "--accent": "#e63312",
+      "--shadow": "rgba(0,0,0,0.08)", "--shadow-heavy": "rgba(0,0,0,0.18)",
+    },
+  },
+  lofi_paper: {
+    label: "Lo-Fi Paper", preview: ["#6b7c93", "#f8f5ef", "#c4785a"],
+    dark: {
+      "--bg": "#1a1814", "--card": "#221e18", "--surface": "#1c1a15", "--sidebar": "#181610",
+      "--border": "#3a3628", "--border-hover": "#5a5440", "--border-subtle": "#2a2820",
+      "--track": "#2a2820", "--nav-active": "#2e2a20", "--nav-hover": "#242018",
+      "--text-primary": "#e8e0d0", "--text-secondary": "#b0a890", "--text-muted": "#7a7060",
+      "--icon-bg": "#2e2a20",
+      "--green": "#6a9a6a", "--green-bg": "#6a9a6a18",
+      "--amber": "#c4785a", "--amber-bg": "#c4785a18",
+      "--red": "#c05050", "--red-bg": "#c0505018",
+      "--accent": "#c4785a",
+      "--shadow": "rgba(0,0,0,0.35)", "--shadow-heavy": "rgba(0,0,0,0.6)",
+    },
+    light: {
+      "--bg": "#f8f5ef", "--card": "#fdfaf5", "--surface": "#f4f0e8", "--sidebar": "#eeeae0",
+      "--border": "#c8bea8", "--border-hover": "#a89e88", "--border-subtle": "#ddd8cc",
+      "--track": "#ddd8cc", "--nav-active": "#ede8dc", "--nav-hover": "#f2ede4",
+      "--text-primary": "#2a2620", "--text-secondary": "#5a5448", "--text-muted": "#8a8070",
+      "--icon-bg": "#ede8dc",
+      "--green": "#4a7a4a", "--green-bg": "#4a7a4a18",
+      "--amber": "#9a5a30", "--amber-bg": "#9a5a3018",
+      "--red": "#9a3030", "--red-bg": "#9a303018",
+      "--accent": "#c4785a",
+      "--shadow": "rgba(40,30,10,0.08)", "--shadow-heavy": "rgba(40,30,10,0.18)",
+    },
+  },
+};
+
+// Merge all theme groups
 const COLOR_THEMES = {
-  blue_gold: {
-    label: "Blue & Gold", preview: ["#3b82f6", "#f0c644"],
+  blue_gold: { label: "Blue & Gold", preview: ["#3b82f6", "#f0c644"],
     dark: {
       "--bg": "#0a0e17", "--card": "#111827", "--surface": "#0d1220", "--sidebar": "#0b0f1a",
       "--border": "#1e2a3f", "--border-hover": "#2d3f5a", "--border-subtle": "#162032",
@@ -207,9 +546,92 @@ const COLOR_THEMES = {
       "--shadow": "rgba(0,0,0,0.06)", "--shadow-heavy": "rgba(0,0,0,0.12)",
     },
   },
+  retro_poster: {
+    label: "Retro Poster", preview: ["#cc1a1a", "#f5f0e0", "#1a1a2e"],
+    dark: {
+      "--bg": "#0f0a0a", "--card": "#1a0f0f", "--surface": "#140c0c", "--sidebar": "#120a0a",
+      "--border": "#3d1515", "--border-hover": "#5c2020", "--border-subtle": "#2a1010",
+      "--track": "#2a1010", "--nav-active": "#2e1212", "--nav-hover": "#240e0e",
+      "--text-primary": "#f5f0e0", "--text-secondary": "#d4c9a8", "--text-muted": "#8a7a5a",
+      "--icon-bg": "#2e1212",
+      "--green": "#4a9e4a", "--green-bg": "#4a9e4a18",
+      "--amber": "#e8a020", "--amber-bg": "#e8a02018",
+      "--red": "#cc1a1a", "--red-bg": "#cc1a1a18",
+      "--accent": "#cc1a1a",
+      "--shadow": "rgba(0,0,0,0.35)", "--shadow-heavy": "rgba(0,0,0,0.7)",
+    },
+    light: {
+      "--bg": "#f5f0e0", "--card": "#faf6ea", "--surface": "#f0e8d0", "--sidebar": "#ece4cc",
+      "--border": "#c8a878", "--border-hover": "#a08858", "--border-subtle": "#ddd0b0",
+      "--track": "#ddd0b0", "--nav-active": "#e8d8b8", "--nav-hover": "#ede4cc",
+      "--text-primary": "#1a0f0f", "--text-secondary": "#3d2020", "--text-muted": "#6a4a30",
+      "--icon-bg": "#e8d8b8",
+      "--green": "#2d7a2d", "--green-bg": "#2d7a2d18",
+      "--amber": "#b87800", "--amber-bg": "#b8780018",
+      "--red": "#cc1a1a", "--red-bg": "#cc1a1a18",
+      "--accent": "#cc1a1a",
+      "--shadow": "rgba(80,30,0,0.10)", "--shadow-heavy": "rgba(80,30,0,0.22)",
+    },
+  },
+  comic_book: {
+    label: "Comic Book", preview: ["#f5e642", "#e8281e", "#1e3eb8"],
+    dark: {
+      "--bg": "#10101a", "--card": "#1a1a2e", "--surface": "#14142a", "--sidebar": "#111126",
+      "--border": "#2e2e5a", "--border-hover": "#4040a0", "--border-subtle": "#222244",
+      "--track": "#222244", "--nav-active": "#252554", "--nav-hover": "#1e1e44",
+      "--text-primary": "#fffde8", "--text-secondary": "#c0c8ff", "--text-muted": "#7880c0",
+      "--icon-bg": "#252554",
+      "--green": "#00c844", "--green-bg": "#00c84418",
+      "--amber": "#f5e642", "--amber-bg": "#f5e64218",
+      "--red": "#e8281e", "--red-bg": "#e8281e18",
+      "--accent": "#f5e642",
+      "--shadow": "rgba(0,0,0,0.35)", "--shadow-heavy": "rgba(0,0,0,0.7)",
+    },
+    light: {
+      "--bg": "#fffde8", "--card": "#ffffff", "--surface": "#fffff0", "--sidebar": "#f8f6d8",
+      "--border": "#1e3eb8", "--border-hover": "#142ab0", "--border-subtle": "#c8d0f8",
+      "--track": "#dde2fa", "--nav-active": "#dce4fc", "--nav-hover": "#edf0fc",
+      "--text-primary": "#10101a", "--text-secondary": "#1e3eb8", "--text-muted": "#5060a0",
+      "--icon-bg": "#dce4fc",
+      "--green": "#008c30", "--green-bg": "#008c3018",
+      "--amber": "#c8a800", "--amber-bg": "#c8a80018",
+      "--red": "#e8281e", "--red-bg": "#e8281e18",
+      "--accent": "#e8281e",
+      "--shadow": "rgba(30,62,184,0.10)", "--shadow-heavy": "rgba(30,62,184,0.22)",
+    },
+  },
+  medieval: {
+    label: "Medieval Parchment", preview: ["#8b1a1a", "#c8a45a", "#2d4a1e"],
+    dark: {
+      "--bg": "#0e0b06", "--card": "#1a1408", "--surface": "#150f06", "--sidebar": "#120c05",
+      "--border": "#3a2a10", "--border-hover": "#5a4018", "--border-subtle": "#2a1e0a",
+      "--track": "#2a1e0a", "--nav-active": "#2e2010", "--nav-hover": "#22180a",
+      "--text-primary": "#f0e4c0", "--text-secondary": "#c8a45a", "--text-muted": "#8a6a38",
+      "--icon-bg": "#2e2010",
+      "--green": "#4a8c2a", "--green-bg": "#4a8c2a18",
+      "--amber": "#c8a45a", "--amber-bg": "#c8a45a18",
+      "--red": "#8b1a1a", "--red-bg": "#8b1a1a18",
+      "--accent": "#c8a45a",
+      "--shadow": "rgba(0,0,0,0.35)", "--shadow-heavy": "rgba(0,0,0,0.7)",
+    },
+    light: {
+      "--bg": "#f2e8cc", "--card": "#faf3dd", "--surface": "#ede0c0", "--sidebar": "#e8d8b0",
+      "--border": "#b8945a", "--border-hover": "#9a7840", "--border-subtle": "#ddd0a8",
+      "--track": "#ddd0a8", "--nav-active": "#e4d4a8", "--nav-hover": "#ede2bc",
+      "--text-primary": "#1e1206", "--text-secondary": "#4a3018", "--text-muted": "#7a5e38",
+      "--icon-bg": "#e4d4a8",
+      "--green": "#2d6e18", "--green-bg": "#2d6e1818",
+      "--amber": "#9a6e10", "--amber-bg": "#9a6e1018",
+      "--red": "#8b1a1a", "--red-bg": "#8b1a1a18",
+      "--accent": "#8b1a1a",
+      "--shadow": "rgba(60,30,0,0.12)", "--shadow-heavy": "rgba(60,30,0,0.25)",
+    },
+  },
+  ...RETRO_THEMES,
+  ...CULTURAL_THEMES,
+  ...PLAYFUL_THEMES,
+  ...MINIMAL_THEMES,
 };
-
-// All possible dashboard widgets
 const DASHBOARD_WIDGETS = [
   { id: "today", label: "Today's Snapshot" },
   { id: "networth", label: "Net Worth" },
@@ -601,7 +1023,7 @@ function StatusPill({ spent, limit }) {
 
 function Card({ children, style = {} }) {
   return (
-    <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", ...style }}>
+    <div className="maverick-card" style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", ...style }}>
       {children}
     </div>
   );
@@ -1022,6 +1444,683 @@ function MobileMoreMenu({ activePage, onNavigate, onClose, hiddenPages = [] }) {
   );
 }
 
+function ThemeStyles() {
+  return (
+    <style>{`
+      /* ─── GOOGLE FONTS ─────────────────────────────────── */
+      @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=IM+Fell+English:ital@0;1&family=Special+Elite&family=Bangers&display=swap');
+
+      /* ═══════════════════════════════════════════════════════
+         MEDIEVAL PARCHMENT THEME
+         Cards look like aged parchment blocks with rough edges,
+         sepia ink text, worn borders, vellum-like texture.
+      ═══════════════════════════════════════════════════════ */
+      [data-color-theme="medieval"] {
+        font-family: 'IM Fell English', Georgia, serif !important;
+        letter-spacing: 0.01em;
+      }
+
+      /* Headings use Cinzel (Roman inscription style) */
+      [data-color-theme="medieval"] h1,
+      [data-color-theme="medieval"] h2,
+      [data-color-theme="medieval"] h3 {
+        font-family: 'Cinzel', Georgia, serif !important;
+        letter-spacing: 0.04em;
+        font-weight: 600 !important;
+      }
+
+      /* Parchment card blocks — dark mode */
+      [data-color-theme="medieval"][data-mode="dark"] .maverick-card {
+        background: 
+          radial-gradient(ellipse at 20% 10%, rgba(60,40,10,0.6) 0%, transparent 60%),
+          radial-gradient(ellipse at 80% 90%, rgba(40,25,5,0.7) 0%, transparent 60%),
+          linear-gradient(135deg, #1e1608 0%, #2a1e08 40%, #1a1208 100%) !important;
+        border: 1px solid #5a4018 !important;
+        border-radius: 4px !important;
+        box-shadow:
+          0 0 0 1px rgba(200,164,90,0.15),
+          inset 0 1px 0 rgba(200,164,90,0.08),
+          inset 0 -1px 0 rgba(0,0,0,0.3),
+          2px 4px 12px rgba(0,0,0,0.6),
+          0 1px 2px rgba(0,0,0,0.4) !important;
+        position: relative !important;
+        overflow: visible !important;
+      }
+
+      /* Parchment card blocks — light mode (the main event) */
+      [data-color-theme="medieval"][data-mode="light"] .maverick-card {
+        background:
+          radial-gradient(ellipse at 15% 15%, rgba(210,180,100,0.35) 0%, transparent 55%),
+          radial-gradient(ellipse at 85% 80%, rgba(180,140,70,0.30) 0%, transparent 50%),
+          radial-gradient(ellipse at 50% 50%, rgba(255,243,200,0.2) 0%, transparent 70%),
+          linear-gradient(160deg,
+            #f7edcf 0%,
+            #f2e4b8 15%,
+            #f8f0d8 30%,
+            #eedcaa 50%,
+            #f5e8c5 70%,
+            #f0e2b2 85%,
+            #f8edcc 100%
+          ) !important;
+        border: none !important;
+        border-radius: 3px !important;
+        box-shadow:
+          0 0 0 1px rgba(120,80,20,0.35),
+          0 0 0 2px rgba(160,110,40,0.15),
+          inset 0 1px 3px rgba(180,140,60,0.25),
+          inset 0 -1px 2px rgba(100,60,10,0.15),
+          3px 5px 14px rgba(80,50,10,0.22),
+          0 1px 3px rgba(80,50,10,0.12) !important;
+        overflow: visible !important;
+      }
+
+      /* Worn/rough border effect using pseudo-element — light mode */
+      [data-color-theme="medieval"][data-mode="light"] .maverick-card::before {
+        content: '';
+        position: absolute;
+        inset: -1px;
+        border-radius: 3px;
+        border: 1.5px solid rgba(140,90,30,0.4);
+        pointer-events: none;
+        background: transparent;
+        box-shadow: inset 0 0 8px rgba(120,70,10,0.12);
+        z-index: 1;
+      }
+
+      /* Sidebar parchment — light mode */
+      [data-color-theme="medieval"][data-mode="light"] .maverick-sidebar,
+      [data-color-theme="medieval"][data-mode="light"] [class*="sidebar"] {
+        background:
+          linear-gradient(180deg, #e8d5a8 0%, #ddc890 50%, #e4d4a4 100%) !important;
+        border-right: 2px solid rgba(140,90,30,0.4) !important;
+      }
+
+      /* Sidebar parchment — dark mode */
+      [data-color-theme="medieval"][data-mode="dark"] .maverick-sidebar {
+        background: linear-gradient(180deg, #18120a 0%, #201808 50%, #16100a 100%) !important;
+        border-right: 1px solid #4a3010 !important;
+      }
+
+      /* Page background — light: aged linen */
+      [data-color-theme="medieval"][data-mode="light"] .maverick-main {
+        background:
+          radial-gradient(ellipse at 30% 20%, rgba(200,170,100,0.12) 0%, transparent 60%),
+          radial-gradient(ellipse at 70% 80%, rgba(180,140,70,0.10) 0%, transparent 60%),
+          linear-gradient(160deg, #f0e4c4 0%, #f5edd0 50%, #ede0b8 100%) !important;
+      }
+
+      /* Page background — dark: scorched vellum */
+      [data-color-theme="medieval"][data-mode="dark"] .maverick-main {
+        background:
+          radial-gradient(ellipse at 20% 30%, rgba(60,40,10,0.4) 0%, transparent 50%),
+          linear-gradient(160deg, #100c06 0%, #140e06 100%) !important;
+      }
+
+      /* Buttons get a stamped/pressed look */
+      [data-color-theme="medieval"] button {
+        font-family: 'Cinzel', Georgia, serif !important;
+        letter-spacing: 0.04em !important;
+      }
+
+      /* Input fields look like ink on parchment */
+      [data-color-theme="medieval"][data-mode="light"] input,
+      [data-color-theme="medieval"][data-mode="light"] select,
+      [data-color-theme="medieval"][data-mode="light"] textarea {
+        background: rgba(255,248,225,0.8) !important;
+        border-color: rgba(140,90,30,0.5) !important;
+        font-family: 'IM Fell English', Georgia, serif !important;
+      }
+
+      /* Navigation active state — dark scroll */
+      [data-color-theme="medieval"][data-mode="light"] .maverick-nav-active {
+        background: rgba(139,26,26,0.12) !important;
+      }
+
+      /* Pill/badge buttons — wax seal feel */
+      [data-color-theme="medieval"] .maverick-card button[style*="var(--accent)"] {
+        box-shadow: inset 0 1px 0 rgba(255,220,150,0.3), 0 2px 4px rgba(80,20,10,0.3) !important;
+      }
+
+      /* Card header labels — engraved look */
+      [data-color-theme="medieval"] .maverick-card span[style*="text-transform: uppercase"] {
+        letter-spacing: 0.12em !important;
+        font-family: 'Cinzel', Georgia, serif !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════
+         RETRO POSTER THEME
+         Flat bold blocks, stark contrast, WPA poster geometry.
+      ═══════════════════════════════════════════════════════ */
+      [data-color-theme="retro_poster"] {
+        font-family: 'Special Elite', 'Courier New', monospace !important;
+        letter-spacing: 0.02em;
+      }
+
+      [data-color-theme="retro_poster"] h1,
+      [data-color-theme="retro_poster"] h2,
+      [data-color-theme="retro_poster"] h3 {
+        font-family: 'Special Elite', 'Courier New', monospace !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.08em !important;
+      }
+
+      [data-color-theme="retro_poster"] .maverick-card {
+        border-radius: 0 !important;
+        border-width: 2px !important;
+        box-shadow: 4px 4px 0 rgba(204,26,26,0.6) !important;
+        position: relative !important;
+      }
+
+      [data-color-theme="retro_poster"][data-mode="light"] .maverick-card {
+        box-shadow: 4px 4px 0 rgba(100,10,10,0.7) !important;
+      }
+
+      [data-color-theme="retro_poster"] button {
+        font-family: 'Special Elite', monospace !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.06em !important;
+        border-radius: 0 !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════
+         COMIC BOOK THEME
+         Bold outlines, hard shadows, screen-print energy.
+      ═══════════════════════════════════════════════════════ */
+      [data-color-theme="comic_book"] {
+        font-family: 'Bangers', 'Impact', sans-serif !important;
+        letter-spacing: 0.05em;
+      }
+
+      [data-color-theme="comic_book"] h1,
+      [data-color-theme="comic_book"] h2,
+      [data-color-theme="comic_book"] h3 {
+        font-family: 'Bangers', 'Impact', sans-serif !important;
+        letter-spacing: 0.08em !important;
+        font-weight: 400 !important;
+      }
+
+      [data-color-theme="comic_book"] .maverick-card {
+        border-width: 2px !important;
+        border-radius: 8px !important;
+        box-shadow: 3px 3px 0 var(--text-primary) !important;
+      }
+
+      [data-color-theme="comic_book"][data-mode="dark"] .maverick-card {
+        box-shadow: 3px 3px 0 rgba(245,230,66,0.7) !important;
+      }
+
+      [data-color-theme="comic_book"] button {
+        font-family: 'Bangers', Impact, sans-serif !important;
+        letter-spacing: 0.06em !important;
+        border-radius: 6px !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════
+         TERMINAL GREEN — CRT phosphor monitor
+         Scanline overlay, monospace everything, glow borders
+      ═══════════════════════════════════════════════════════ */
+      @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap');
+
+      [data-color-theme="terminal"] {
+        font-family: 'Share Tech Mono', 'Courier New', monospace !important;
+      }
+      [data-color-theme="terminal"] h1,
+      [data-color-theme="terminal"] h2,
+      [data-color-theme="terminal"] h3 {
+        font-family: 'VT323', monospace !important;
+        letter-spacing: 0.1em !important;
+        text-transform: uppercase !important;
+      }
+      [data-color-theme="terminal"][data-mode="dark"] .maverick-card {
+        border-radius: 2px !important;
+        border-color: #00ff4150 !important;
+        box-shadow: 0 0 8px rgba(0,255,65,0.15), inset 0 0 20px rgba(0,255,65,0.03) !important;
+        background: repeating-linear-gradient(
+          0deg,
+          rgba(0,255,65,0.015) 0px,
+          rgba(0,255,65,0.015) 1px,
+          transparent 1px,
+          transparent 3px
+        ), #0a1a0a !important;
+      }
+      [data-color-theme="terminal"] .maverick-main {
+        background: repeating-linear-gradient(
+          0deg,
+          rgba(0,0,0,0.03) 0px,
+          rgba(0,0,0,0.03) 1px,
+          transparent 1px,
+          transparent 4px
+        ) !important;
+      }
+      [data-color-theme="terminal"] button {
+        font-family: 'Share Tech Mono', monospace !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.08em !important;
+        border-radius: 2px !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════
+         SYNTHWAVE — 80s neon, grid horizon, glowing outlines
+      ═══════════════════════════════════════════════════════ */
+      @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&family=Exo+2:wght@300;400;600&display=swap');
+
+      [data-color-theme="synthwave"] {
+        font-family: 'Exo 2', sans-serif !important;
+      }
+      [data-color-theme="synthwave"] h1,
+      [data-color-theme="synthwave"] h2,
+      [data-color-theme="synthwave"] h3 {
+        font-family: 'Orbitron', sans-serif !important;
+        letter-spacing: 0.06em !important;
+      }
+      [data-color-theme="synthwave"][data-mode="dark"] .maverick-card {
+        border-radius: 6px !important;
+        border-color: #7b2fff60 !important;
+        box-shadow:
+          0 0 10px rgba(255,45,120,0.2),
+          0 0 30px rgba(123,47,255,0.1),
+          inset 0 1px 0 rgba(255,45,120,0.15) !important;
+        background: linear-gradient(135deg, #160a28 0%, #1a0e30 100%) !important;
+      }
+      [data-color-theme="synthwave"][data-mode="dark"] .maverick-main {
+        background:
+          linear-gradient(rgba(123,47,255,0.05) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(123,47,255,0.05) 1px, transparent 1px),
+          #0d0015 !important;
+        background-size: 100% 40px, 40px 100% !important;
+      }
+      [data-color-theme="synthwave"] button {
+        font-family: 'Orbitron', sans-serif !important;
+        letter-spacing: 0.06em !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════
+         NEWSPAPER — Broadsheet print, column rule, ink type
+      ═══════════════════════════════════════════════════════ */
+      @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Source+Serif+4:wght@300;400;600&display=swap');
+
+      [data-color-theme="newspaper"] {
+        font-family: 'Source Serif 4', Georgia, serif !important;
+      }
+      [data-color-theme="newspaper"] h1,
+      [data-color-theme="newspaper"] h2,
+      [data-color-theme="newspaper"] h3 {
+        font-family: 'Playfair Display', Georgia, serif !important;
+        font-weight: 900 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.02em !important;
+      }
+      [data-color-theme="newspaper"][data-mode="light"] .maverick-card {
+        border-radius: 0 !important;
+        border: none !important;
+        border-top: 3px double #1a1a1a !important;
+        border-bottom: 1px solid #1a1a1a !important;
+        box-shadow: none !important;
+        background: #faf7f0 !important;
+      }
+      [data-color-theme="newspaper"][data-mode="dark"] .maverick-card {
+        border-radius: 0 !important;
+        border: none !important;
+        border-top: 3px double #f0ead8 !important;
+        border-bottom: 1px solid #3a3820 !important;
+        box-shadow: none !important;
+      }
+      [data-color-theme="newspaper"] button {
+        font-family: 'Playfair Display', Georgia, serif !important;
+        font-weight: 700 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.08em !important;
+        border-radius: 0 !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════
+         BLUEPRINT — Engineering drawing, white-on-blue, grid
+      ═══════════════════════════════════════════════════════ */
+      @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap');
+
+      [data-color-theme="blueprint"] {
+        font-family: 'Courier Prime', 'Courier New', monospace !important;
+      }
+      [data-color-theme="blueprint"] h1,
+      [data-color-theme="blueprint"] h2,
+      [data-color-theme="blueprint"] h3 {
+        font-family: 'Courier Prime', monospace !important;
+        font-weight: 700 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.12em !important;
+      }
+      [data-color-theme="blueprint"] .maverick-card {
+        border-radius: 2px !important;
+        border-style: solid !important;
+        border-width: 1px !important;
+        border-color: rgba(255,255,255,0.35) !important;
+        box-shadow: inset 0 0 0 3px rgba(255,255,255,0.06) !important;
+        background:
+          linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px),
+          var(--card) !important;
+        background-size: 100% 20px, 20px 100% !important;
+      }
+      [data-color-theme="blueprint"] .maverick-main {
+        background:
+          linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px),
+          var(--bg) !important;
+        background-size: 100% 24px, 24px 100% !important;
+      }
+      [data-color-theme="blueprint"] button {
+        font-family: 'Courier Prime', monospace !important;
+        letter-spacing: 0.08em !important;
+        border-radius: 0 !important;
+        text-transform: uppercase !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════
+         ART DECO — Gold geometry, Gatsby ornament, stepped corners
+      ═══════════════════════════════════════════════════════ */
+      @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600;700&family=Poiret+One&display=swap');
+
+      [data-color-theme="art_deco"] {
+        font-family: 'Cormorant Garamond', Georgia, serif !important;
+        font-size: 105% !important;
+      }
+      [data-color-theme="art_deco"] h1,
+      [data-color-theme="art_deco"] h2,
+      [data-color-theme="art_deco"] h3 {
+        font-family: 'Poiret One', sans-serif !important;
+        letter-spacing: 0.15em !important;
+        text-transform: uppercase !important;
+      }
+      [data-color-theme="art_deco"] .maverick-card {
+        border-radius: 0 !important;
+        border-width: 1px !important;
+        border-color: #c9a84c60 !important;
+        box-shadow:
+          0 0 0 3px var(--bg),
+          0 0 0 4px #c9a84c40,
+          3px 3px 0 4px var(--bg),
+          3px 3px 0 5px #c9a84c25 !important;
+        position: relative !important;
+      }
+      [data-color-theme="art_deco"][data-mode="light"] .maverick-card {
+        background: linear-gradient(135deg, #fdfaf0 0%, #f8f4e4 100%) !important;
+      }
+      [data-color-theme="art_deco"] button {
+        font-family: 'Poiret One', sans-serif !important;
+        letter-spacing: 0.12em !important;
+        text-transform: uppercase !important;
+        border-radius: 0 !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════
+         ANCIENT EGYPT — Papyrus, scarab borders, lapis & gold
+      ═══════════════════════════════════════════════════════ */
+      @import url('https://fonts.googleapis.com/css2?family=Philosopher:wght@400;700&display=swap');
+
+      [data-color-theme="ancient_egypt"] {
+        font-family: 'Philosopher', Georgia, serif !important;
+      }
+      [data-color-theme="ancient_egypt"] h1,
+      [data-color-theme="ancient_egypt"] h2,
+      [data-color-theme="ancient_egypt"] h3 {
+        font-family: 'Philosopher', Georgia, serif !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.1em !important;
+        text-transform: uppercase !important;
+      }
+      [data-color-theme="ancient_egypt"][data-mode="light"] .maverick-card {
+        background: linear-gradient(160deg, #fdf4d0 0%, #f8ecc0 50%, #fdf0c8 100%) !important;
+        border: none !important;
+        border-radius: 2px !important;
+        box-shadow:
+          0 0 0 2px #d4af37,
+          0 0 0 4px #c44a1a50,
+          3px 5px 12px rgba(80,40,0,0.25) !important;
+      }
+      [data-color-theme="ancient_egypt"][data-mode="dark"] .maverick-card {
+        border-color: #d4af3740 !important;
+        border-radius: 2px !important;
+        box-shadow: 0 0 12px rgba(212,175,55,0.1), inset 0 0 30px rgba(0,0,0,0.3) !important;
+      }
+      [data-color-theme="ancient_egypt"] button {
+        font-family: 'Philosopher', Georgia, serif !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.08em !important;
+        border-radius: 1px !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════
+         NEON TOKYO — Cyberpunk rain, kanji neon, vivid glow
+      ═══════════════════════════════════════════════════════ */
+      @import url('https://fonts.googleapis.com/css2?family=Zen+Dots&family=M+PLUS+1+Code:wght@300;400;500&display=swap');
+
+      [data-color-theme="neon_tokyo"] {
+        font-family: 'M PLUS 1 Code', monospace !important;
+      }
+      [data-color-theme="neon_tokyo"] h1,
+      [data-color-theme="neon_tokyo"] h2,
+      [data-color-theme="neon_tokyo"] h3 {
+        font-family: 'Zen Dots', sans-serif !important;
+        letter-spacing: 0.04em !important;
+      }
+      [data-color-theme="neon_tokyo"][data-mode="dark"] .maverick-card {
+        border-radius: 4px !important;
+        border-color: #ff008040 !important;
+        box-shadow:
+          0 0 12px rgba(255,0,128,0.2),
+          0 0 4px rgba(0,255,204,0.15),
+          inset 0 0 40px rgba(255,0,128,0.03) !important;
+        background: linear-gradient(135deg, #0e0e1c 0%, #100c1e 100%) !important;
+      }
+      [data-color-theme="neon_tokyo"][data-mode="dark"] .maverick-main {
+        background:
+          linear-gradient(rgba(255,0,128,0.04) 1px, transparent 1px),
+          #080810 !important;
+        background-size: 100% 60px !important;
+      }
+      [data-color-theme="neon_tokyo"] button {
+        font-family: 'Zen Dots', sans-serif !important;
+        letter-spacing: 0.04em !important;
+        border-radius: 3px !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════
+         CRAYON — Pastel hand-drawn, wobbly borders, chunky fun
+      ═══════════════════════════════════════════════════════ */
+      @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=Nunito:wght@400;600;700;800&display=swap');
+
+      [data-color-theme="crayon"] {
+        font-family: 'Nunito', sans-serif !important;
+      }
+      [data-color-theme="crayon"] h1,
+      [data-color-theme="crayon"] h2,
+      [data-color-theme="crayon"] h3 {
+        font-family: 'Caveat', cursive !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.02em !important;
+      }
+      [data-color-theme="crayon"][data-mode="light"] .maverick-card {
+        border-radius: 16px 4px 18px 6px !important;
+        border-width: 2px !important;
+        border-color: #ff6b9d !important;
+        box-shadow: 3px 4px 0 #ffd93d, 5px 6px 0 #6bcb7740 !important;
+        background: #ffffff !important;
+      }
+      [data-color-theme="crayon"][data-mode="dark"] .maverick-card {
+        border-radius: 16px 4px 18px 6px !important;
+        border-width: 2px !important;
+        border-color: #ff6b9d50 !important;
+        box-shadow: 3px 4px 0 rgba(255,217,61,0.4) !important;
+      }
+      [data-color-theme="crayon"] button {
+        font-family: 'Nunito', sans-serif !important;
+        font-weight: 800 !important;
+        border-radius: 999px !important;
+      }
+      [data-color-theme="crayon"] .maverick-main {
+        background-image: radial-gradient(circle, var(--border-subtle) 1px, transparent 1px) !important;
+        background-size: 24px 24px !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════
+         CHALKBOARD — Slate green, chalk texture, dusty letters
+      ═══════════════════════════════════════════════════════ */
+      @import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Indie+Flower&display=swap');
+
+      [data-color-theme="chalkboard"] {
+        font-family: 'Indie Flower', cursive !important;
+        font-size: 105% !important;
+      }
+      [data-color-theme="chalkboard"] h1,
+      [data-color-theme="chalkboard"] h2,
+      [data-color-theme="chalkboard"] h3 {
+        font-family: 'Permanent Marker', cursive !important;
+        letter-spacing: 0.04em !important;
+      }
+      [data-color-theme="chalkboard"] .maverick-card {
+        border-radius: 4px !important;
+        border-color: rgba(255,255,255,0.25) !important;
+        border-style: dashed !important;
+        border-width: 2px !important;
+        box-shadow: none !important;
+        background:
+          repeating-linear-gradient(
+            rgba(255,255,255,0.015) 0px,
+            rgba(255,255,255,0.015) 1px,
+            transparent 1px,
+            transparent 28px
+          ),
+          var(--card) !important;
+      }
+      [data-color-theme="chalkboard"] button {
+        font-family: 'Permanent Marker', cursive !important;
+        border-radius: 4px !important;
+        letter-spacing: 0.04em !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════
+         LEGO — Primary bold, stud details, hard block geometry
+      ═══════════════════════════════════════════════════════ */
+      @import url('https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@700;800;900&display=swap');
+
+      [data-color-theme="lego"] {
+        font-family: 'Nunito Sans', sans-serif !important;
+        font-weight: 700 !important;
+      }
+      [data-color-theme="lego"] h1,
+      [data-color-theme="lego"] h2,
+      [data-color-theme="lego"] h3 {
+        font-family: 'Nunito Sans', sans-serif !important;
+        font-weight: 900 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.04em !important;
+      }
+      [data-color-theme="lego"][data-mode="light"] .maverick-card {
+        border-radius: 6px !important;
+        border: 3px solid #111 !important;
+        box-shadow: 4px 4px 0 #111 !important;
+        background: #ffffff !important;
+      }
+      [data-color-theme="lego"][data-mode="dark"] .maverick-card {
+        border-radius: 6px !important;
+        border: 3px solid #e3000b !important;
+        box-shadow: 4px 4px 0 #ffcd00 !important;
+      }
+      [data-color-theme="lego"] button {
+        font-family: 'Nunito Sans', sans-serif !important;
+        font-weight: 900 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.04em !important;
+        border-radius: 4px !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════
+         SWISS MODERNIST — Ultra grid, Helvetica-adjacent, 1 accent
+      ═══════════════════════════════════════════════════════ */
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+      [data-color-theme="swiss"] {
+        font-family: 'Inter', 'Helvetica Neue', sans-serif !important;
+        font-weight: 400 !important;
+      }
+      [data-color-theme="swiss"] h1,
+      [data-color-theme="swiss"] h2,
+      [data-color-theme="swiss"] h3 {
+        font-family: 'Inter', sans-serif !important;
+        font-weight: 700 !important;
+        text-transform: uppercase !important;
+        letter-spacing: -0.01em !important;
+      }
+      [data-color-theme="swiss"][data-mode="light"] .maverick-card {
+        border-radius: 0 !important;
+        border: none !important;
+        border-left: 4px solid #111 !important;
+        box-shadow: none !important;
+        background: #ffffff !important;
+      }
+      [data-color-theme="swiss"][data-mode="dark"] .maverick-card {
+        border-radius: 0 !important;
+        border: none !important;
+        border-left: 4px solid #e63312 !important;
+        box-shadow: none !important;
+        background: #141414 !important;
+      }
+      [data-color-theme="swiss"] button {
+        font-family: 'Inter', sans-serif !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.06em !important;
+        text-transform: uppercase !important;
+        border-radius: 0 !important;
+      }
+      [data-color-theme="swiss"][data-mode="light"] .maverick-main {
+        background: #ffffff !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════
+         LO-FI PAPER — Off-white notebook, pencil borders, cozy
+      ═══════════════════════════════════════════════════════ */
+      @import url('https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600&family=Patrick+Hand&display=swap');
+
+      [data-color-theme="lofi_paper"] {
+        font-family: 'Lora', Georgia, serif !important;
+      }
+      [data-color-theme="lofi_paper"] h1,
+      [data-color-theme="lofi_paper"] h2,
+      [data-color-theme="lofi_paper"] h3 {
+        font-family: 'Patrick Hand', cursive !important;
+        letter-spacing: 0.02em !important;
+        font-weight: 400 !important;
+      }
+      [data-color-theme="lofi_paper"][data-mode="light"] .maverick-card {
+        border-radius: 3px !important;
+        border: 1px solid #b8a888 !important;
+        box-shadow: 1px 2px 6px rgba(40,30,10,0.08), inset 0 1px 0 rgba(255,255,255,0.8) !important;
+        background: #fdfaf5 !important;
+      }
+      [data-color-theme="lofi_paper"][data-mode="light"] .maverick-main {
+        background:
+          repeating-linear-gradient(
+            transparent 0px,
+            transparent 27px,
+            #d8ccc0 27px,
+            #d8ccc0 28px
+          ),
+          #f8f5ef !important;
+      }
+      [data-color-theme="lofi_paper"][data-mode="dark"] .maverick-card {
+        border-radius: 3px !important;
+        border-color: #4a4030 !important;
+        box-shadow: 1px 2px 6px rgba(0,0,0,0.3) !important;
+      }
+      [data-color-theme="lofi_paper"] button {
+        font-family: 'Patrick Hand', cursive !important;
+        letter-spacing: 0.03em !important;
+        border-radius: 4px !important;
+      }
+    `}</style>
+  );
+}
+
 function ResponsiveStyles() {
   return (
     <style>{`
@@ -1245,7 +2344,7 @@ const NAV_ITEMS = [
 function Sidebar({ activePage, onNavigate, collapsed, onToggle, hiddenPages = [] }) {
   const visibleItems = NAV_ITEMS.filter((item) => item.id === "dashboard" || item.id === "settings" || !hiddenPages.includes(item.id));
   return (
-    <div style={{
+    <div className="maverick-sidebar" style={{
       width: collapsed ? 64 : 200, minWidth: collapsed ? 64 : 200,
       height: "100vh", position: "sticky", top: 0,
       background: "var(--sidebar)", borderRight: "1px solid var(--border)",
@@ -3066,6 +4165,18 @@ function formatShortDate(date) {
 }
 
 function WaterfallRow({ line, paycheckKey, onDragStart, onRemove, onTogglePaid }) {
+  // Divider lines (virtual mid-month split) render as a simple separator
+  if (line.isDivider) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 16px", background: "var(--surface)", borderBottom: "1px solid var(--border-subtle)" }}>
+        <DragHandle onPointerDown={onDragStart} />
+        <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", whiteSpace: "nowrap" }}>15th</span>
+        <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+      </div>
+    );
+  }
+
   const isIncome = line.isIncome;
   const canRemove = line.customId != null;
   const isBill = line.type === "bill";
@@ -3345,12 +4456,35 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
     [billTemplates, year, month]
   );
 
-  // Assign bills to the paycheck on or before their due date
+  // Assign bills to the paycheck on or before their due date.
+  // For semimonthly bills: if no paycheck falls on/after the 15th,
+  // inject a virtual split at the 15th so those instances display correctly.
   const assignBillsToPaychecks = useMemo(() => {
     const assignments = {};
     allPaychecks.forEach((pc) => { assignments[pc.key] = []; });
+
+    // Check if any paycheck lands on or after the 15th of the month
+    const hasLatePaycheck = allPaychecks.some((pc) => pc.date.getDate() >= 15);
+
+    // If no paycheck is on/after the 15th but we have semimonthly bills,
+    // create a virtual split key for mid-month bills
+    const midMonthKey = `virtual-15-${year}-${String(month + 1).padStart(2, "0")}`;
+    const needsMidSplit = !hasLatePaycheck && monthBills.some((b) => {
+      const d = new Date(b.instanceDate + "T00:00:00");
+      return d.getDate() >= 15;
+    });
+    if (needsMidSplit) assignments[midMonthKey] = [];
+
     monthBills.forEach((bill) => {
       const billDate = new Date(bill.instanceDate + "T00:00:00");
+      const billDay = billDate.getDate();
+
+      // If this is a mid-month bill and we have a virtual split, use it
+      if (needsMidSplit && billDay >= 15) {
+        assignments[midMonthKey].push(bill);
+        return;
+      }
+
       let assignedKey = null;
       for (let i = allPaychecks.length - 1; i >= 0; i--) {
         if (allPaychecks[i].date <= billDate) { assignedKey = allPaychecks[i].key; break; }
@@ -3359,35 +4493,62 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
       if (assignedKey) assignments[assignedKey].push(bill);
     });
     return assignments;
-  }, [allPaychecks, monthBills]);
+  }, [allPaychecks, monthBills, year, month]);
 
   // Build the waterfall schedule for each paycheck
   const paycheckSchedules = useMemo(() => {
     const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
+    const midMonthKey = `virtual-15-${monthKey}`;
+    const hasMidSplit = midMonthKey in assignBillsToPaychecks;
+
     let carryOver = monthlyRollovers[monthKey] || 0;
-    return allPaychecks.map((pc) => {
+
+    // Build a list of schedule entries: real paychecks + optional virtual mid-month marker
+    const scheduleEntries = [...allPaychecks];
+    if (hasMidSplit) {
+      // Insert a virtual entry at the 15th position
+      const midDate = new Date(year, month, 15);
+      const midEntry = {
+        streamId: "virtual", streamName: "Mid-Month",
+        streamColor: "var(--text-muted)", amount: 0,
+        date: midDate, dateStr: formatDateKey(midDate),
+        key: midMonthKey, fromIncome: false, isVirtual: true,
+      };
+      // Insert after all paychecks before the 15th
+      const insertIdx = scheduleEntries.findIndex((pc) => pc.date > midDate);
+      if (insertIdx === -1) scheduleEntries.push(midEntry);
+      else scheduleEntries.splice(insertIdx, 0, midEntry);
+    }
+
+    return scheduleEntries.map((pc) => {
       const startingBuffer = carryOver;
       const bills = (assignBillsToPaychecks[pc.key] || []).sort((a, b) => a.amount - b.amount);
-      const custom = customItems[pc.key] || [];
+      const custom = pc.isVirtual ? [] : (customItems[pc.key] || []);
       const customExpenses = custom.filter((i) => i.type === "expense");
       const customIncome = custom.filter((i) => i.type === "income");
       const customSavings = custom.filter((i) => i.type === "savings");
 
-      // Build waterfall lines
       const lines = [];
-      // Income line
       const extraIncome = customIncome.reduce((s, i) => s + i.amount, 0);
-      lines.push({ type: "income", name: pc.streamName, amount: pc.amount, dateInfo: formatShortDate(pc.date), color: pc.streamColor, isIncome: true, rawDate: pc.date });
-      customIncome.forEach((ci) => {
-        lines.push({ type: "income", name: ci.name, amount: ci.amount, dateInfo: formatShortDate(pc.date), color: "var(--green)", isIncome: true, customId: ci.id, rawDate: pc.date });
-      });
+
+      // Income line — skip for virtual mid-month entries
+      if (!pc.isVirtual) {
+        lines.push({ type: "income", name: pc.streamName, amount: pc.amount, dateInfo: formatShortDate(pc.date), color: pc.streamColor, isIncome: true, rawDate: pc.date });
+        customIncome.forEach((ci) => {
+          lines.push({ type: "income", name: ci.name, amount: ci.amount, dateInfo: formatShortDate(pc.date), color: "var(--green)", isIncome: true, customId: ci.id, rawDate: pc.date });
+        });
+      } else {
+        // Virtual separator line — just a divider, no income
+        lines.push({ type: "divider", name: "— 15th —", amount: 0, dateInfo: formatShortDate(pc.date), isIncome: false, isDivider: true, rawDate: pc.date });
+      }
+
       // Bills
       bills.forEach((bill) => {
         const isPaid = paidDates.has(bill.instanceKey);
         const billDate = new Date(bill.instanceDate + "T00:00:00");
         lines.push({ type: "bill", name: bill.name, amount: bill.amount, dateInfo: formatShortDate(billDate), isPaid, recurring: bill.recurring, frequency: bill.frequency, rawDate: billDate, instanceKey: bill.instanceKey });
       });
-      // Savings (manually added by user)
+      // Savings
       customSavings.forEach((cs) => {
         lines.push({ type: "savings", name: cs.name, amount: cs.amount, dateInfo: formatShortDate(pc.date), color: cs.color || "var(--accent)", customId: cs.id, rawDate: pc.date });
       });
@@ -3396,11 +4557,11 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
         lines.push({ type: "custom", name: ci.name, amount: ci.amount, dateInfo: formatShortDate(pc.date), customId: ci.id, rawDate: pc.date });
       });
 
-      // Calculate running balance starting from the carry-over buffer
+      // Running balance
       let balance = startingBuffer;
       lines.forEach((line) => {
         if (line.isIncome) balance += line.amount;
-        else balance -= line.amount;
+        else if (!line.isDivider) balance -= line.amount;
         line.balance = balance;
       });
 
@@ -9742,7 +10903,7 @@ function OnboardingWizard({ onComplete }) {
     incomeStreams: [{ id: 1, source: "", amount: "", frequency: "semimonthly", anchorDate: today }],
     bills: [{ id: 1, name: "", amount: "", frequency: "monthly", dueDay: "1" }],
     categories: INITIAL_CATEGORIES.map((c) => ({ ...c, enabled: true })),
-    debts: [{ id: 1, name: "", balance: "", minPayment: "", apr: "", dueDay: "1" }],
+    debts: [{ id: 1, name: "", balance: "", minPayment: "", apr: "", dueDay: "1", frequency: "monthly", dueMonth: "1" }],
     savingsTarget: "",
     checkingBalance: "",
     savingsBalance: "",
@@ -9833,7 +10994,11 @@ function OnboardingWizard({ onComplete }) {
       .filter((d) => d.name.trim() && parseFloat(d.balance) > 0)
       .map((d, i) => {
         const day = Math.min(parseInt(d.dueDay) || 1, 28);
-        const startDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+        const mon = Math.min(parseInt(d.dueMonth) || 1, 12);
+        const freq = d.frequency || "monthly";
+        // Build anchorDate: for yearly use the specified month, otherwise current month
+        const anchorMonth = freq === "yearly" ? mon : now.getMonth() + 1;
+        const anchorDate = `${now.getFullYear()}-${String(anchorMonth).padStart(2, "0")}-${String(freq === "semimonthly" ? 1 : day).padStart(2, "0")}`;
         return {
           id: i + 1,
           name: d.name.trim(),
@@ -9843,10 +11008,24 @@ function OnboardingWizard({ onComplete }) {
           apr: parseFloat(d.apr) || 0,
           icon: "💳",
           lender: "",
-          startDate,
+          startDate: anchorDate,
+          frequency: freq,
           payments: [],
         };
       });
+
+    // Create bill templates for debt minimum payments so they show in Paycheck Planner
+    const debtBillTemplates = debts
+      .filter((d) => d.minPayment > 0)
+      .map((d, i) => ({
+        id: bills.length + i + 1,
+        name: `${d.name} (min pmt)`,
+        amount: d.minPayment,
+        anchorDate: d.startDate,
+        recurring: true,
+        frequency: d.frequency,
+        isDebtPayment: true,
+      }));
 
     // Assets
     const assets = [];
@@ -9869,7 +11048,7 @@ function OnboardingWizard({ onComplete }) {
 
     onComplete({
       income: incomes.length > 0 ? incomes : INITIAL_INCOME,
-      billTemplates: bills.length > 0 ? bills : INITIAL_BILL_TEMPLATES,
+      billTemplates: bills.length > 0 ? [...bills, ...debtBillTemplates] : [...INITIAL_BILL_TEMPLATES, ...debtBillTemplates],
       debts: debts.length > 0 ? debts : INITIAL_DEBTS,
       assets: assets.length > 0 ? assets : INITIAL_ASSETS,
       savingsGoals: savingsGoals.length > 0 ? savingsGoals : INITIAL_SAVINGS_GOALS,
@@ -10079,37 +11258,66 @@ function OnboardingWizard({ onComplete }) {
                 <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 10 }}>Any debts? (optional)</div>
                   {data.debts.map((d) => (
-                    <div key={d.id} style={{ display: "flex", gap: 8, alignItems: "flex-end", marginBottom: 8, flexWrap: "wrap" }}>
-                      <div style={{ flex: "2 1 110px" }}>
-                        {d.id === 1 && <FieldLabel>Name</FieldLabel>}
-                        <input value={d.name} onChange={(e) => updateListItem("debts", d.id, "name", e.target.value)} placeholder="e.g. Credit Card" style={INPUT_STYLE} />
+                    <div key={d.id} style={{ padding: "10px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", marginBottom: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+                      {/* Row 1: Name, Balance, Min Payment, APR */}
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
+                        <div style={{ flex: "2 1 110px" }}>
+                          {d.id === 1 && <FieldLabel>Name</FieldLabel>}
+                          <input value={d.name} onChange={(e) => updateListItem("debts", d.id, "name", e.target.value)} placeholder="e.g. Credit Card" style={INPUT_STYLE} />
+                        </div>
+                        <div style={{ flex: "1 1 80px" }}>
+                          {d.id === 1 && <FieldLabel>Balance ($)</FieldLabel>}
+                          <input type="number" step="0.01" min="0" value={d.balance} onChange={(e) => updateListItem("debts", d.id, "balance", e.target.value)} placeholder="0" style={INPUT_STYLE} />
+                        </div>
+                        <div style={{ flex: "1 1 75px" }}>
+                          {d.id === 1 && <FieldLabel>Min Pmt</FieldLabel>}
+                          <input type="number" step="0.01" min="0" value={d.minPayment} onChange={(e) => updateListItem("debts", d.id, "minPayment", e.target.value)} placeholder="0" style={INPUT_STYLE} />
+                        </div>
+                        <div style={{ flex: "0.6 1 60px" }}>
+                          {d.id === 1 && <FieldLabel>APR %</FieldLabel>}
+                          <input type="number" step="0.1" min="0" value={d.apr} onChange={(e) => updateListItem("debts", d.id, "apr", e.target.value)} placeholder="0" style={INPUT_STYLE} />
+                        </div>
+                        {data.debts.length > 1 && (
+                          <button onClick={() => removeListItem("debts", d.id)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "8px 4px", fontSize: 18, lineHeight: 1 }}>×</button>
+                        )}
                       </div>
-                      <div style={{ flex: "1 1 80px" }}>
-                        {d.id === 1 && <FieldLabel>Balance ($)</FieldLabel>}
-                        <input type="number" step="0.01" min="0" value={d.balance} onChange={(e) => updateListItem("debts", d.id, "balance", e.target.value)} placeholder="0" style={INPUT_STYLE} />
+                      {/* Row 2: Frequency + Due Date */}
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
+                        <div style={{ flex: "1 1 110px" }}>
+                          <FieldLabel>Payment Frequency</FieldLabel>
+                          <select value={d.frequency} onChange={(e) => updateListItem("debts", d.id, "frequency", e.target.value)} style={{ ...INPUT_STYLE, cursor: "pointer" }}>
+                            <option value="weekly">Weekly</option>
+                            <option value="biweekly">Biweekly</option>
+                            <option value="semimonthly">1st & 15th</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="quarterly">Quarterly</option>
+                            <option value="yearly">Annually</option>
+                          </select>
+                        </div>
+                        {d.frequency !== "semimonthly" && d.frequency !== "weekly" && d.frequency !== "biweekly" && (
+                          <div style={{ flex: "0 1 80px" }}>
+                            <FieldLabel>Due Day</FieldLabel>
+                            <select value={d.dueDay} onChange={(e) => updateListItem("debts", d.id, "dueDay", e.target.value)} style={{ ...INPUT_STYLE, cursor: "pointer" }}>
+                              {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
+                                <option key={day} value={day}>{day}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                        {d.frequency === "yearly" && (
+                          <div style={{ flex: "1 1 100px" }}>
+                            <FieldLabel>Due Month</FieldLabel>
+                            <select value={d.dueMonth || "1"} onChange={(e) => updateListItem("debts", d.id, "dueMonth", e.target.value)} style={{ ...INPUT_STYLE, cursor: "pointer" }}>
+                              {["January","February","March","April","May","June","July","August","September","October","November","December"].map((m, i) => (
+                                <option key={i+1} value={i+1}>{m}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
                       </div>
-                      <div style={{ flex: "1 1 75px" }}>
-                        {d.id === 1 && <FieldLabel>Min Pmt</FieldLabel>}
-                        <input type="number" step="0.01" min="0" value={d.minPayment} onChange={(e) => updateListItem("debts", d.id, "minPayment", e.target.value)} placeholder="0" style={INPUT_STYLE} />
-                      </div>
-                      <div style={{ flex: "0.6 1 60px" }}>
-                        {d.id === 1 && <FieldLabel>APR %</FieldLabel>}
-                        <input type="number" step="0.1" min="0" value={d.apr} onChange={(e) => updateListItem("debts", d.id, "apr", e.target.value)} placeholder="0" style={INPUT_STYLE} />
-                      </div>
-                      <div style={{ flex: "0.6 1 65px" }}>
-                        {d.id === 1 && <FieldLabel>Due Day</FieldLabel>}
-                        <select value={d.dueDay} onChange={(e) => updateListItem("debts", d.id, "dueDay", e.target.value)} style={{ ...INPUT_STYLE, cursor: "pointer" }}>
-                          {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
-                            <option key={day} value={day}>{day}</option>
-                          ))}
-                        </select>
-                      </div>
-                      {data.debts.length > 1 && (
-                        <button onClick={() => removeListItem("debts", d.id)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "8px 0", fontSize: 18 }}>×</button>
-                      )}
                     </div>
                   ))}
-                  <button onClick={() => addListItem("debts", { name: "", balance: "", minPayment: "", apr: "" })}
+                  <button onClick={() => addListItem("debts", { name: "", balance: "", minPayment: "", apr: "", dueDay: "1", frequency: "monthly", dueMonth: "1" })}
                     style={{ padding: "6px", borderRadius: 8, border: "1px dashed var(--border)", background: "transparent", color: "var(--text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer", width: "100%" }}>
                     + Add Debt
                   </button>
@@ -10533,7 +11741,7 @@ export default function MaverickOS() {
   }
 
   return (
-    <div style={{
+    <div data-color-theme={settings.colorTheme || "blue_gold"} data-mode={isDark ? "dark" : "light"} style={{
       ...themeVars,
       fontFamily: "'DM Sans', 'SF Pro Display', -apple-system, sans-serif",
       background: "var(--bg)", color: "var(--text-primary)",
@@ -10541,6 +11749,7 @@ export default function MaverickOS() {
     }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
       <PwaHead />
+      <ThemeStyles />
       <ResponsiveStyles />
 
       {!isMobile && (
