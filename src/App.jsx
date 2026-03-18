@@ -39,6 +39,8 @@ const DEFAULT_SETTINGS = {
   hiddenPages: [],
   // Dashboard widget configuration — order and visibility
   dashboardWidgets: ["today", "networth", "metrics", "income", "spending", "bills", "savings", "debt"],
+  // Notification preferences
+  notifications: { billsDue: true, budgetAlert: true, monthlyRecap: true, savingsGoal: true },
 };
 
 // Color theme palettes — each defines dark and light CSS variable sets
@@ -1223,7 +1225,7 @@ function Sidebar({ activePage, onNavigate, collapsed, onToggle, hiddenPages = []
 // DASHBOARD PAGE
 // ─────────────────────────────────────────────
 
-function DashboardPage({ categories, transactions, income, billTemplates, paidDates, savingsGoals, debts, assets, settings }) {
+function DashboardPage({ categories, transactions, income, billTemplates, paidDates, savingsGoals, debts, assets, settings, recurringTransactions, setTransactions }) {
   const startDay = settings?.startDayOfMonth || 1;
   const now = new Date();
 
@@ -1279,6 +1281,29 @@ function DashboardPage({ categories, transactions, income, billTemplates, paidDa
   const todayBillsDue = todayBills.filter((b) => !paidDates.has(b.instanceKey));
   const nextBill = upcomingBills[0];
 
+  // Recurring transaction auto-log nudge
+  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const unloggedRecurring = useMemo(() => {
+    if (!recurringTransactions) return [];
+    return recurringTransactions.filter((rt) => {
+      if (!rt.active) return false;
+      return !transactions.some((t) =>
+        t.categoryId === rt.categoryId &&
+        t.description === rt.description &&
+        Math.abs(t.amount - rt.amount) < 0.01 &&
+        t.date.startsWith(monthKey)
+      );
+    });
+  }, [recurringTransactions, transactions, monthKey]);
+
+  const handleLogAllRecurring = () => {
+    if (!setTransactions || unloggedRecurring.length === 0) return;
+    setTransactions((prev) => [...prev, ...unloggedRecurring.map((rt) => ({
+      id: nextId(), categoryId: rt.categoryId,
+      description: rt.description, amount: rt.amount, date: todayStr,
+    }))]);
+  };
+
   const widgets = settings?.dashboardWidgets || DEFAULT_SETTINGS.dashboardWidgets;
   const isVisible = (id) => widgets.includes(id);
 
@@ -1290,6 +1315,26 @@ function DashboardPage({ categories, transactions, income, billTemplates, paidDa
           {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
         </p>
       </div>
+
+      {/* Auto-log recurring transactions nudge */}
+      {unloggedRecurring.length > 0 && (
+        <div style={{ marginBottom: 16, padding: "12px 16px", borderRadius: 12, background: "var(--accent)12", border: "1px solid var(--accent)40", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 20 }}>🔄</span>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+                {unloggedRecurring.length} recurring transaction{unloggedRecurring.length !== 1 ? "s" : ""} not yet logged this month
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 1 }}>
+                {unloggedRecurring.slice(0, 3).map((rt) => rt.description).join(", ")}{unloggedRecurring.length > 3 ? ` +${unloggedRecurring.length - 3} more` : ""}
+              </div>
+            </div>
+          </div>
+          <button onClick={handleLogAllRecurring} style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: "var(--accent)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+            Log All
+          </button>
+        </div>
+      )}
 
       {/* Today's Snapshot */}
       {isVisible("today") && (
@@ -1881,7 +1926,7 @@ function AddBillForm({ onAdd, onClose }) {
 // RECURRING BILLS PAGE
 // ─────────────────────────────────────────────
 
-function RecurringBillsPage({ billTemplates, setBillTemplates, paidDates, onNavigate, showUndo }) {
+function RecurringBillsPage({ billTemplates, setBillTemplates, paidDates, onNavigate, showUndo, transactions }) {
   const [editingBill, setEditingBill] = useState(null);
   const [showAddBill, setShowAddBill] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(null);
@@ -1965,12 +2010,55 @@ function RecurringBillsPage({ billTemplates, setBillTemplates, paidDates, onNavi
       </div>
 
       {/* Summary metrics */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 28 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 20 }}>
         <MetricBox label="Monthly Cost" value={fmt(totalMonthly)} sub={`${recurringBills.length} recurring bills`} accent="var(--accent)" />
         <MetricBox label="Yearly Cost" value={fmtCompact(totalYearly)} sub="projected annual" accent="var(--amber)" />
         <MetricBox label="Recurring Bills" value={recurringBills.length} sub={`${freqOrder.filter((f) => grouped[f]).length} frequencies`} />
         <MetricBox label="One-Time Bills" value={oneTimeBills.length} sub={oneTimeBills.length === 0 ? "none scheduled" : `${fmt(oneTimeBills.reduce((s, b) => s + b.amount, 0))} total`} />
       </div>
+
+      {/* Bill price change detection */}
+      {(() => {
+        if (!transactions || transactions.length === 0) return null;
+        const changes = recurringBills.map((bill) => {
+          // Find transactions matching this bill description in last 2 months
+          const now = new Date();
+          const thisMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+          const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          const lastMonthKey = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, "0")}`;
+          const billName = bill.name.toLowerCase();
+          const thisMonthTx = transactions.filter((t) => t.date.startsWith(thisMonthKey) && t.description.toLowerCase().includes(billName));
+          const lastMonthTx = transactions.filter((t) => t.date.startsWith(lastMonthKey) && t.description.toLowerCase().includes(billName));
+          if (thisMonthTx.length === 0 || lastMonthTx.length === 0) return null;
+          const thisAmt = thisMonthTx[0].amount;
+          const lastAmt = lastMonthTx[0].amount;
+          if (Math.abs(thisAmt - lastAmt) < 0.01) return null;
+          return { bill, thisAmt, lastAmt, diff: thisAmt - lastAmt };
+        }).filter(Boolean);
+        if (changes.length === 0) return null;
+        return (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--amber)", marginBottom: 8 }}>⚠️ Price Changes Detected</div>
+            {changes.map(({ bill, thisAmt, lastAmt, diff }) => (
+              <div key={bill.id} style={{ padding: "10px 14px", borderRadius: 10, background: "var(--surface)", border: "1px solid var(--amber)44", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                <div>
+                  <span style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary)" }}>{bill.name}</span>
+                  <span style={{ fontSize: 12, color: "var(--text-muted)", marginLeft: 8 }}>{fmt(lastAmt)} → {fmt(thisAmt)}</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: diff > 0 ? "var(--red)" : "var(--green)" }}>
+                    {diff > 0 ? "+" : ""}{fmt(diff)}/mo
+                  </span>
+                  <button onClick={() => setBillTemplates((prev) => prev.map((b) => b.id === bill.id ? { ...b, amount: thisAmt } : b))}
+                    style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", color: "var(--text-secondary)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                    Update Bill
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Grouped recurring bills */}
       {freqOrder.filter((f) => grouped[f]).map((freq) => {
@@ -2209,7 +2297,7 @@ function EditBillForm({ bill, onSave, onClose }) {
 // SAVINGS GOALS PAGE
 // ─────────────────────────────────────────────
 
-function SavingsPage({ savingsGoals, setSavingsGoals, showUndo }) {
+function SavingsPage({ savingsGoals, setSavingsGoals, showUndo, categories, setCategories, setTransactions, budgetTargets, setBudgetTargets }) {
   const [modal, setModal] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
 
@@ -2219,20 +2307,69 @@ function SavingsPage({ savingsGoals, setSavingsGoals, showUndo }) {
   const completedCount = savingsGoals.filter((g) => g.current >= g.target).length;
 
   const addContribution = (goalId, amount) => {
+    const goal = savingsGoals.find((g) => g.id === goalId);
+    const today = new Date().toISOString().split("T")[0];
+    // Update savings goal
     setSavingsGoals((prev) => prev.map((g) => g.id === goalId ? {
       ...g, current: g.current + amount,
-      contributions: [...g.contributions, { date: new Date().toISOString().split("T")[0], amount }],
+      contributions: [...g.contributions, { date: today, amount }],
     } : g));
+    // Log as a transaction in the savings budget category
+    const catId = `savings_${goalId}`;
+    if (setTransactions) {
+      setTransactions((prev) => [...prev, {
+        id: nextId(), categoryId: catId,
+        description: `${goal?.name || "Savings"} contribution`,
+        amount, date: today,
+      }]);
+    }
     setModal(null);
   };
 
   const addGoal = (goal) => {
     setSavingsGoals((prev) => [...prev, goal]);
+    // Auto-create a matching budget category + target
+    const catId = `savings_${goal.id}`;
+    if (setCategories) {
+      setCategories((prev) => {
+        if (prev.find((c) => c.id === catId)) return prev;
+        return [...prev, { id: catId, name: goal.name, icon: goal.icon || "💰", limit: goal.monthlyContribution || 0, color: goal.color || "var(--accent)" }];
+      });
+    }
+    if (setBudgetTargets && goal.target > 0) {
+      setBudgetTargets((prev) => ({
+        ...prev,
+        [catId]: {
+          type: "target_by_date",
+          targetAmount: goal.target,
+          targetDate: goal.deadline || "",
+          funded: goal.current || 0,
+        },
+      }));
+    }
     setModal(null);
   };
 
   const updateGoal = (updated) => {
     setSavingsGoals((prev) => prev.map((g) => g.id === updated.id ? { ...g, ...updated } : g));
+    // Sync budget category name/icon
+    const catId = `savings_${updated.id}`;
+    if (setCategories) {
+      setCategories((prev) => prev.map((c) => c.id === catId
+        ? { ...c, name: updated.name, icon: updated.icon || c.icon, color: updated.color || c.color }
+        : c));
+    }
+    if (setBudgetTargets && updated.target > 0) {
+      setBudgetTargets((prev) => ({
+        ...prev,
+        [catId]: {
+          type: "target_by_date",
+          targetAmount: updated.target,
+          targetDate: updated.deadline || "",
+          funded: updated.current || 0,
+        },
+      }));
+    }
     setModal(null);
   };
 
@@ -2240,6 +2377,10 @@ function SavingsPage({ savingsGoals, setSavingsGoals, showUndo }) {
     const goal = savingsGoals.find((g) => g.id === id);
     if (showUndo && goal) showUndo(`Deleted "${goal.name}" goal`);
     setSavingsGoals((prev) => prev.filter((g) => g.id !== id));
+    // Remove matching budget category
+    const catId = `savings_${id}`;
+    if (setCategories) setCategories((prev) => prev.filter((c) => c.id !== catId));
+    if (setBudgetTargets) setBudgetTargets((prev) => { const next = { ...prev }; delete next[catId]; return next; });
   };
 
   return (
@@ -4501,6 +4642,61 @@ function NetWorthPage({ assets, setAssets, debts, showUndo, networthHistory = []
         </Card>
       )}
 
+      {/* Net Worth Milestones */}
+      {(() => {
+        const milestones = [
+          { value: 0, label: "Break Even", icon: "🏁", desc: "Net worth hits zero" },
+          { value: 1000, label: "$1K", icon: "🌱", desc: "First thousand" },
+          { value: 5000, label: "$5K", icon: "💵", desc: "Five thousand" },
+          { value: 10000, label: "$10K", icon: "🔟", desc: "Five figures" },
+          { value: 25000, label: "$25K", icon: "📈", desc: "Quarter way to six figures" },
+          { value: 50000, label: "$50K", icon: "🥈", desc: "Halfway to six figures" },
+          { value: 100000, label: "$100K", icon: "💯", desc: "Six figures" },
+          { value: 250000, label: "$250K", icon: "🏆", desc: "Quarter million" },
+          { value: 500000, label: "$500K", icon: "🦅", desc: "Half million" },
+          { value: 1000000, label: "$1M", icon: "💎", desc: "Millionaire" },
+        ];
+        const achieved = milestones.filter((m) => netWorth >= m.value);
+        const next = milestones.find((m) => netWorth < m.value);
+        const latest = achieved[achieved.length - 1];
+        if (!latest && !next) return null;
+        return (
+          <Card style={{ marginBottom: 24 }}>
+            <CardHeader title="Milestones" />
+            <div style={{ padding: "0 20px 16px" }}>
+              {latest && (
+                <div style={{ padding: "10px 14px", borderRadius: 10, background: "var(--green-bg, var(--surface))", border: "1px solid var(--green)44", marginBottom: 10, display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontSize: 24 }}>{latest.icon}</span>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: "var(--green)" }}>✓ {latest.label} — {latest.desc}</div>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 1 }}>Most recent milestone achieved</div>
+                  </div>
+                </div>
+              )}
+              {next && (
+                <div style={{ padding: "10px 14px", borderRadius: 10, background: "var(--surface)", border: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontSize: 24, opacity: 0.4 }}>{next.icon}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary)" }}>Next: {next.label} — {next.desc}</div>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 3 }}>
+                      {fmt(next.value - netWorth)} to go · {next.value > 0 ? `${((netWorth / next.value) * 100).toFixed(0)}% there` : ""}
+                    </div>
+                    <ProgressBar value={Math.max(netWorth, 0)} max={next.value} height={5} />
+                  </div>
+                </div>
+              )}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12 }}>
+                {milestones.map((m) => (
+                  <div key={m.value} style={{ fontSize: 11, padding: "3px 9px", borderRadius: 999, border: `1px solid ${netWorth >= m.value ? "var(--green)44" : "var(--border)"}`, background: netWorth >= m.value ? "var(--green)18" : "transparent", color: netWorth >= m.value ? "var(--green)" : "var(--text-muted)", fontWeight: 600 }}>
+                    {netWorth >= m.value ? "✓ " : ""}{m.label}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Card>
+        );
+      })()}
+
       {/* Asset breakdown by category */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 24 }}>
         {assetCatTotals.map((cat) => (
@@ -6175,7 +6371,7 @@ function TransactionsPage({ transactions, setTransactions, categories, showUndo 
       {showAdd && (
         <Overlay onClose={() => setShowAdd(false)}>
           <ModalForm title="Add Transaction">
-            <AddTransactionFields categories={categories} onSubmit={(tx) => { setTransactions((p) => [...p, tx]); setShowAdd(false); }} onClose={() => setShowAdd(false)} />
+            <AddTransactionFields categories={categories} onSubmit={(tx, isSplit) => { setTransactions((p) => isSplit ? [...p, ...tx] : [...p, tx]); setShowAdd(false); }} onClose={() => setShowAdd(false)} />
           </ModalForm>
         </Overlay>
       )}
@@ -7280,13 +7476,149 @@ function MonthlySummaryPage({ categories, transactions, income, billTemplates, p
           })()}
         </div>
       </Card>
+      {/* Year-in-Review */}
+      {(() => {
+        const yearTx = transactions.filter((t) => t.date.startsWith(`${year}-`));
+        if (yearTx.length === 0) return null;
+        const yearIncome = income.reduce((s, i) => {
+          if (!i.recurring) return s + i.amount;
+          switch (i.frequency) {
+            case "weekly": return s + i.amount * 52;
+            case "biweekly": return s + i.amount * 26;
+            case "semimonthly": return s + i.amount * 24;
+            case "monthly": return s + i.amount * 12;
+            case "quarterly": return s + i.amount * 4;
+            case "yearly": return s + i.amount;
+            default: return s + i.amount * 12;
+          }
+        }, 0);
+        const yearSpent = yearTx.reduce((s, t) => s + t.amount, 0);
+        const savingsRate = yearIncome > 0 ? Math.max(0, ((yearIncome - yearSpent) / yearIncome) * 100) : 0;
+        // Top category this year
+        const catTotals = {};
+        yearTx.forEach((t) => { catTotals[t.categoryId] = (catTotals[t.categoryId] || 0) + t.amount; });
+        const topCatId = Object.entries(catTotals).sort((a, b) => b[1] - a[1])[0]?.[0];
+        const topCat = categories.find((c) => c.id === topCatId);
+        const topCatAmt = catTotals[topCatId] || 0;
+        // Monthly breakdown
+        const months = [];
+        for (let m = 0; m < 12; m++) {
+          const mk = `${year}-${String(m + 1).padStart(2, "0")}`;
+          const mTx = yearTx.filter((t) => t.date.startsWith(mk));
+          months.push({ label: new Date(year, m, 1).toLocaleDateString("en-US", { month: "short" }), total: mTx.reduce((s, t) => s + t.amount, 0), count: mTx.length });
+        }
+        const maxMonthly = Math.max(...months.map((m) => m.total), 1);
+        const bestMonth = [...months].sort((a, b) => a.total - b.total)[0];
+        const worstMonth = [...months].sort((a, b) => b.total - a.total)[0];
+        return (
+          <Card style={{ marginTop: 20 }}>
+            <CardHeader title={`${year} Year in Review`} action={<span style={{ fontSize: 12, color: "var(--text-muted)" }}>{yearTx.length} transactions</span>} />
+            <div style={{ padding: "0 20px 20px" }}>
+              {/* Key stats */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 20 }}>
+                <div style={{ padding: "12px", borderRadius: 10, background: "var(--surface)", border: "1px solid var(--border)" }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 4 }}>Total Spent</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: "var(--red)", fontVariantNumeric: "tabular-nums" }}>{fmtCompact(yearSpent)}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{fmt(yearSpent / 12)}/mo avg</div>
+                </div>
+                <div style={{ padding: "12px", borderRadius: 10, background: "var(--surface)", border: "1px solid var(--border)" }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 4 }}>Savings Rate</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: savingsRate >= 20 ? "var(--green)" : savingsRate >= 10 ? "var(--amber)" : "var(--red)", fontVariantNumeric: "tabular-nums" }}>{savingsRate.toFixed(0)}%</div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{savingsRate >= 20 ? "Great!" : savingsRate >= 10 ? "Good" : "Room to grow"}</div>
+                </div>
+                {topCat && (
+                  <div style={{ padding: "12px", borderRadius: 10, background: "var(--surface)", border: "1px solid var(--border)" }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 4 }}>Top Category</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)" }}>{topCat.icon} {topCat.name}</div>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{fmt(topCatAmt)} · {((topCatAmt / yearSpent) * 100).toFixed(0)}% of spend</div>
+                  </div>
+                )}
+                <div style={{ padding: "12px", borderRadius: 10, background: "var(--surface)", border: "1px solid var(--border)" }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 4 }}>Best Month</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: "var(--green)" }}>{bestMonth.label}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{fmt(bestMonth.total)} spent</div>
+                </div>
+              </div>
+
+              {/* Monthly bar chart */}
+              <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 10 }}>Monthly Spending</div>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 80 }}>
+                {months.map((m, i) => {
+                  const h = Math.round((m.total / maxMonthly) * 68);
+                  const isCurrent = i === month;
+                  const isWorst = m.label === worstMonth.label && m.total > 0;
+                  return (
+                    <div key={m.label} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                      {m.total > 0 && <div style={{ fontSize: 8, color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>{m.total >= 1000 ? `${(m.total/1000).toFixed(0)}k` : Math.round(m.total)}</div>}
+                      <div style={{ width: "100%", height: Math.max(h, m.total > 0 ? 3 : 1), borderRadius: "3px 3px 0 0", background: isWorst ? "var(--red)" : isCurrent ? "var(--accent)" : "var(--border-hover)", transition: "height 0.4s" }} />
+                      <div style={{ fontSize: 8, color: isCurrent ? "var(--accent)" : "var(--text-muted)", fontWeight: isCurrent ? 700 : 400 }}>{m.label}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </Card>
+        );
+      })()}
     </div>
   );
 }
+// ─────────────────────────────────────────────
 
-// ─────────────────────────────────────────────
-// SETTINGS PAGE
-// ─────────────────────────────────────────────
+function NotificationsSettings({ settings, setSettings }) {
+  const [notifStatus, setNotifStatus] = useState(() => {
+    if (typeof Notification === "undefined") return "unavailable";
+    return Notification.permission;
+  });
+  const requestPermission = async () => {
+    if (typeof Notification === "undefined") return;
+    const result = await Notification.requestPermission();
+    setNotifStatus(result);
+    if (result === "granted") {
+      new Notification("MaverickOS Notifications Enabled", {
+        body: "You'll be reminded about upcoming bills and budget alerts.",
+        icon: "/icon-192.png",
+      });
+    }
+  };
+  const notifPrefs = settings.notifications || {};
+  const togglePref = (key) => setSettings((s) => ({ ...s, notifications: { ...(s.notifications || {}), [key]: !(s.notifications || {})[key] } }));
+  if (notifStatus === "unavailable") {
+    return <div style={{ padding: "12px 20px 16px", fontSize: 13, color: "var(--text-muted)" }}>Notifications are not supported in this browser.</div>;
+  }
+  return (
+    <div style={{ padding: "0 20px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+      {notifStatus !== "granted" ? (
+        <div style={{ padding: "12px 14px", borderRadius: 10, background: "var(--surface)", border: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>Enable Push Notifications</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Get reminders for bills, budget alerts, and monthly recaps</div>
+          </div>
+          <button onClick={requestPermission} style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: "var(--accent)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>Enable</button>
+        </div>
+      ) : (
+        <div style={{ fontSize: 12, color: "var(--green)", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>✓ Notifications enabled</div>
+      )}
+      {[
+        { key: "billsDue", label: "Bills Due Soon", desc: "Reminder 3 days before a bill is due" },
+        { key: "budgetAlert", label: "Budget Alerts", desc: "When a category reaches 80% of its limit" },
+        { key: "monthlyRecap", label: "Monthly Recap", desc: "Summary on the 1st of each month" },
+        { key: "savingsGoal", label: "Savings Milestones", desc: "When you hit a savings goal target" },
+      ].map(({ key, label, desc }) => (
+        <div key={key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid var(--border-subtle)" }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>{label}</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 1 }}>{desc}</div>
+          </div>
+          <div onClick={() => togglePref(key)} style={{ width: 40, height: 22, borderRadius: 11, padding: 2, background: notifPrefs[key] ? "var(--accent)" : "var(--track)", transition: "background 0.2s", display: "flex", alignItems: "center", cursor: "pointer", flexShrink: 0 }}>
+            <div style={{ width: 18, height: 18, borderRadius: 9, background: "#fff", transition: "transform 0.2s", transform: notifPrefs[key] ? "translateX(18px)" : "translateX(0)", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+          </div>
+        </div>
+      ))}
+      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Notifications fire when the app is open or installed as a PWA on your device.</div>
+    </div>
+  );
+}
 
 function SettingsPage({ settings, setSettings, onExport, onExportCsv, onImport, onImportCsv, onReset, onRestartWizard }) {
   const fileRef = useRef(null);
@@ -7556,6 +7888,12 @@ function SettingsPage({ settings, setSettings, onExport, onExportCsv, onImport, 
           </div>
           <div style={{ fontSize: 12, color: "var(--text-muted)" }}>JSON backup saves everything and can be fully restored. CSV export/import works with transactions — columns: Date, Description, Category, Amount.</div>
         </div>
+      </Card>
+
+      {/* Notifications */}
+      <Card style={{ marginBottom: 16 }}>
+        <CardHeader title="Notifications & Reminders" />
+        <NotificationsSettings settings={settings} setSettings={setSettings} />
       </Card>
 
       {/* Danger zone */}
@@ -8675,6 +9013,39 @@ function BudgetPage({ categories, transactions, setCategories, setTransactions, 
         <MetricBox label="Categories Over" value={overCount} sub={overCount === 0 ? "all on track" : "need attention"} accent={overCount > 0 ? "var(--red)" : "var(--green)"} />
       </div>
 
+      {/* Spending alerts */}
+      {(() => {
+        const alerts = categories.map((c) => {
+          const spent = (txByCategory[c.id] || []).reduce((s, t) => s + t.amount, 0);
+          const ts = getTargetStatus(budgetTargets[c.id], spent, c);
+          const limit = (ts.effectiveLimit || ts.monthlyNeeded || c.limit) + (currentRollovers[c.id] || 0);
+          if (!limit || limit <= 0) return null;
+          const ratio = spent / limit;
+          if (ratio >= 1) return { cat: c, spent, limit, ratio, type: "over" };
+          if (ratio >= 0.8) return { cat: c, spent, limit, ratio, type: "warning" };
+          return null;
+        }).filter(Boolean);
+        if (alerts.length === 0) return null;
+        return (
+          <div style={{ marginBottom: 20, display: "flex", flexDirection: "column", gap: 8 }}>
+            {alerts.map(({ cat, spent, limit, ratio, type }) => (
+              <div key={cat.id} style={{ padding: "10px 14px", borderRadius: 10, border: `1px solid ${type === "over" ? "var(--red)44" : "var(--amber)44"}`, background: type === "over" ? "var(--red-bg)" : "var(--amber-bg, var(--surface))", display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 16 }}>{cat.icon}</span>
+                <div style={{ flex: 1 }}>
+                  <span style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)" }}>{cat.name}</span>
+                  <span style={{ fontSize: 12, color: "var(--text-muted)", marginLeft: 8 }}>
+                    {fmt(spent)} of {fmt(limit)} · {(ratio * 100).toFixed(0)}%
+                  </span>
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 700, color: type === "over" ? "var(--red)" : "var(--amber)" }}>
+                  {type === "over" ? `${fmt(spent - limit)} over` : "Near limit"}
+                </span>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
       {/* Budget Rollover Card */}
       {(prevMonthUnspent.total > 0 || rolloverApplied) && (
         <Card style={{ marginBottom: 20, borderColor: rolloverApplied ? "var(--accent)" : "var(--border)" }}>
@@ -8781,7 +9152,7 @@ function BudgetPage({ categories, transactions, setCategories, setTransactions, 
             <AddTransactionFields
               categories={categories}
               prefilledCategoryId={modal?.categoryId || null}
-              onSubmit={(tx) => { setTransactions((p) => [...p, tx]); setModal(null); }}
+              onSubmit={(tx, isSplit) => { setTransactions((p) => isSplit ? [...p, ...tx] : [...p, tx]); setModal(null); }}
               onClose={() => setModal(null)}
             />
           </ModalForm>
@@ -8889,19 +9260,93 @@ function AddTransactionFields({ categories, onSubmit, onClose, existing, prefill
     date: existing.date,
   } : { categoryId: prefilledCategoryId || categories[0]?.id || "", description: "", amount: "", date: new Date().toISOString().split("T")[0] });
   const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
-  const canSubmit = form.categoryId && form.description.trim() && parseFloat(form.amount) > 0 && form.date;
+
+  // Split transaction state
+  const [isSplit, setIsSplit] = useState(false);
+  const [splits, setSplits] = useState([
+    { id: 1, categoryId: prefilledCategoryId || categories[0]?.id || "", amount: "" },
+    { id: 2, categoryId: categories[1]?.id || categories[0]?.id || "", amount: "" },
+  ]);
+  const updateSplit = (id, k, v) => setSplits((prev) => prev.map((s) => s.id === id ? { ...s, [k]: v } : s));
+  const addSplit = () => setSplits((prev) => [...prev, { id: Date.now(), categoryId: categories[0]?.id || "", amount: "" }]);
+  const removeSplit = (id) => setSplits((prev) => prev.filter((s) => s.id !== id));
+
+  const totalAmount = parseFloat(form.amount) || 0;
+  const splitTotal = splits.reduce((s, sp) => s + (parseFloat(sp.amount) || 0), 0);
+  const splitRemaining = Math.round((totalAmount - splitTotal) * 100) / 100;
+  const splitValid = splits.every((s) => s.categoryId && parseFloat(s.amount) > 0) && Math.abs(splitRemaining) < 0.01;
+
+  const canSubmit = isSplit
+    ? form.description.trim() && totalAmount > 0 && form.date && splitValid
+    : form.categoryId && form.description.trim() && parseFloat(form.amount) > 0 && form.date;
+
+  const handleSubmit = () => {
+    if (!canSubmit) return;
+    if (isSplit) {
+      // Pass array of transactions for split mode
+      const splitTxs = splits.map((sp) => ({
+        id: nextId(), categoryId: sp.categoryId,
+        description: form.description.trim(), amount: parseFloat(sp.amount), date: form.date,
+      }));
+      onSubmit(splitTxs, true);
+    } else {
+      onSubmit({ id: existing?.id || nextId(), categoryId: form.categoryId, description: form.description.trim(), amount: parseFloat(form.amount), date: form.date });
+    }
+  };
+
   return (
     <>
       <div style={{ padding: "16px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
-        <div><FieldLabel>Category</FieldLabel><select value={form.categoryId} onChange={(e) => update("categoryId", e.target.value)} style={{ ...INPUT_STYLE, cursor: "pointer" }}>{categories.map((c) => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}</select></div>
         <div><FieldLabel>Description</FieldLabel><input value={form.description} onChange={(e) => update("description", e.target.value)} placeholder="e.g. Grocery store run" style={INPUT_STYLE} /></div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <div><FieldLabel>Amount</FieldLabel><input type="number" step="0.01" min="0" value={form.amount} onChange={(e) => update("amount", e.target.value)} placeholder="0.00" style={INPUT_STYLE} /></div>
+          <div><FieldLabel>Total Amount</FieldLabel><input type="number" step="0.01" min="0" value={form.amount} onChange={(e) => update("amount", e.target.value)} placeholder="0.00" style={INPUT_STYLE} /></div>
           <div><FieldLabel>Date</FieldLabel><input type="date" value={form.date} onChange={(e) => update("date", e.target.value)} style={INPUT_STYLE} /></div>
         </div>
+
+        {!isSplit && (
+          <div><FieldLabel>Category</FieldLabel><select value={form.categoryId} onChange={(e) => update("categoryId", e.target.value)} style={{ ...INPUT_STYLE, cursor: "pointer" }}>{categories.map((c) => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}</select></div>
+        )}
+
+        {/* Split toggle */}
+        {!existing && (
+          <button onClick={() => setIsSplit((v) => !v)} style={{ alignSelf: "flex-start", background: "none", border: `1px solid ${isSplit ? "var(--accent)" : "var(--border)"}`, borderRadius: 7, padding: "5px 12px", fontSize: 12, fontWeight: 600, color: isSplit ? "var(--accent)" : "var(--text-muted)", cursor: "pointer" }}>
+            ✂ {isSplit ? "Split On" : "Split by Category"}
+          </button>
+        )}
+
+        {isSplit && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <FieldLabel>Split Amounts</FieldLabel>
+              <span style={{ fontSize: 12, color: splitRemaining === 0 ? "var(--green)" : splitRemaining < 0 ? "var(--red)" : "var(--amber)", fontWeight: 600 }}>
+                {splitRemaining === 0 ? "✓ Balanced" : splitRemaining > 0 ? `${fmt(splitRemaining)} remaining` : `${fmt(Math.abs(splitRemaining))} over`}
+              </span>
+            </div>
+            {splits.map((sp) => (
+              <div key={sp.id} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <select value={sp.categoryId} onChange={(e) => updateSplit(sp.id, "categoryId", e.target.value)} style={{ ...INPUT_STYLE, flex: 2, cursor: "pointer" }}>
+                  {categories.map((c) => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+                </select>
+                <div style={{ position: "relative", flex: 1 }}>
+                  <input type="number" step="0.01" min="0" value={sp.amount} onChange={(e) => updateSplit(sp.id, "amount", e.target.value)} placeholder="0.00" style={INPUT_STYLE} />
+                </div>
+                {splits.length > 2 && (
+                  <button onClick={() => removeSplit(sp.id)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 18, padding: "0 4px", lineHeight: 1 }}>×</button>
+                )}
+              </div>
+            ))}
+            <button onClick={addSplit} style={{ alignSelf: "flex-start", background: "none", border: "1px dashed var(--border)", borderRadius: 7, padding: "5px 12px", fontSize: 12, fontWeight: 600, color: "var(--text-muted)", cursor: "pointer" }}>+ Add Split</button>
+            {totalAmount > 0 && splitRemaining > 0 && (
+              <button onClick={() => updateSplit(splits[splits.length - 1].id, "amount", String(Math.round((parseFloat(splits[splits.length - 1].amount || 0) + splitRemaining) * 100) / 100))}
+                style={{ alignSelf: "flex-start", background: "none", border: "1px solid var(--border)", borderRadius: 7, padding: "5px 12px", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", cursor: "pointer" }}>
+                Fill remaining {fmt(splitRemaining)}
+              </button>
+            )}
+          </div>
+        )}
       </div>
-      <ModalActions onClose={onClose} canSubmit={canSubmit} label={existing ? "Save Changes" : "Add Transaction"}
-        onSubmit={() => { if (canSubmit) onSubmit({ id: existing?.id || nextId(), categoryId: form.categoryId, description: form.description.trim(), amount: parseFloat(form.amount), date: form.date }); }} />
+      <ModalActions onClose={onClose} canSubmit={canSubmit} label={existing ? "Save Changes" : isSplit ? `Add ${splits.length} Transactions` : "Add Transaction"}
+        onSubmit={handleSubmit} />
     </>
   );
 }
@@ -9569,6 +10014,68 @@ export default function MaverickOS() {
     setLoaded(true);
   }, []);
 
+  // Sync savings goals → budget categories after load (YNAB-style)
+  useEffect(() => {
+    if (!loaded) return;
+    savingsGoals.forEach((goal) => {
+      const catId = `savings_${goal.id}`;
+      setCategories((prev) => {
+        if (prev.find((c) => c.id === catId)) return prev;
+        return [...prev, { id: catId, name: goal.name, icon: goal.icon || "💰", limit: goal.monthlyContribution || 0, color: goal.color || "var(--accent)" }];
+      });
+      if (goal.target > 0) {
+        setBudgetTargets((prev) => {
+          if (prev[catId]) return prev;
+          return { ...prev, [catId]: { type: "target_by_date", targetAmount: goal.target, targetDate: goal.deadline || "", funded: goal.current || 0 } };
+        });
+      }
+    });
+  }, [loaded]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fire browser notifications for bills due, budget alerts, monthly recap
+  useEffect(() => {
+    if (!loaded) return;
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    const notifPrefs = settings.notifications || {};
+    const today = new Date();
+    const todayStr = today.toISOString().split("T")[0];
+    const lastNotifKey = "maverickos_last_notif";
+    const lastNotif = localStorage.getItem(lastNotifKey);
+    if (lastNotif === todayStr) return; // Already fired today
+    localStorage.setItem(lastNotifKey, todayStr);
+
+    // Bills due in next 3 days
+    if (notifPrefs.billsDue) {
+      const upcoming = generateUpcomingBills(billTemplates, paidDates, 1);
+      const soon = upcoming.filter((b) => {
+        const due = new Date(b.instanceDate + "T00:00:00");
+        const diff = Math.ceil((due - today) / 86400000);
+        return diff >= 0 && diff <= 3;
+      });
+      if (soon.length > 0) {
+        const total = soon.reduce((s, b) => s + b.amount, 0);
+        new Notification(`${soon.length} bill${soon.length > 1 ? "s" : ""} due soon`, {
+          body: `${soon.map((b) => b.name).join(", ")} — ${fmt(total)} total`,
+          icon: "/icon-192.png",
+        });
+      }
+    }
+
+    // Monthly recap on 1st of month
+    if (notifPrefs.monthlyRecap && today.getDate() === 1) {
+      const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const lmKey = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, "0")}`;
+      const lmTx = transactions.filter((t) => t.date.startsWith(lmKey));
+      const lmSpent = lmTx.reduce((s, t) => s + t.amount, 0);
+      if (lmSpent > 0) {
+        new Notification(`${lastMonth.toLocaleDateString("en-US", { month: "long" })} Recap`, {
+          body: `You spent ${fmt(lmSpent)} last month across ${lmTx.length} transactions.`,
+          icon: "/icon-192.png",
+        });
+      }
+    }
+  }, [loaded, settings.notifications]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Save to localStorage whenever state changes (after initial load)
   useEffect(() => {
     if (!loaded) return;
@@ -9776,7 +10283,8 @@ export default function MaverickOS() {
           {page === "dashboard" && (
             <DashboardPage categories={categories} transactions={transactions} income={income}
               billTemplates={billTemplates} paidDates={paidDates}
-              savingsGoals={savingsGoals} debts={debts} assets={assets} settings={settings} />
+              savingsGoals={savingsGoals} debts={debts} assets={assets} settings={settings}
+              recurringTransactions={recurringTransactions} setTransactions={setTransactions} />
           )}
           {page === "budget" && (
             <BudgetPage categories={categories} transactions={transactions} setCategories={setCategories} setTransactions={setTransactions} income={income} budgetTargets={budgetTargets} setBudgetTargets={setBudgetTargets} budgetRollovers={budgetRollovers} setBudgetRollovers={setBudgetRollovers} showUndo={showUndo} settings={settings} />
@@ -9787,14 +10295,16 @@ export default function MaverickOS() {
           )}
           {page === "recurring" && (
             <RecurringBillsPage billTemplates={billTemplates} setBillTemplates={setBillTemplates}
-              paidDates={paidDates} onNavigate={setPage} showUndo={showUndo} />
+              paidDates={paidDates} onNavigate={setPage} showUndo={showUndo} transactions={transactions} />
           )}
           {page === "autospend" && (
             <RecurringTransactionsPage recurringTransactions={recurringTransactions} setRecurringTransactions={setRecurringTransactions}
               categories={categories} transactions={transactions} setTransactions={setTransactions} showUndo={showUndo} />
           )}
           {page === "savings" && (
-            <SavingsPage savingsGoals={savingsGoals} setSavingsGoals={setSavingsGoals} showUndo={showUndo} />
+            <SavingsPage savingsGoals={savingsGoals} setSavingsGoals={setSavingsGoals} showUndo={showUndo}
+              categories={categories} setCategories={setCategories}
+              setTransactions={setTransactions} budgetTargets={budgetTargets} setBudgetTargets={setBudgetTargets} />
           )}
           {page === "paycheck" && (
             <PaycheckPlannerPage paycheckStreams={paycheckStreams} setPaycheckStreams={setPaycheckStreams}
