@@ -1088,6 +1088,11 @@ const NAV_ITEMS = [
       <rect x="3" y="12" width="4" height="9" rx="1"/><rect x="10" y="7" width="4" height="14" rx="1"/><rect x="17" y="3" width="4" height="18" rx="1"/>
     </svg>
   )},
+  { id: "recap", label: "Recap", icon: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
+    </svg>
+  )},
   { id: "settings", label: "Settings", icon: (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
@@ -6307,6 +6312,870 @@ function SpendingTrendsPage({ categories, transactions }) {
 }
 
 // ─────────────────────────────────────────────
+// FINANCIAL RECAP PAGE
+// ─────────────────────────────────────────────
+
+function FinancialRecapPage({ categories, transactions, income, billTemplates, paidDates, savingsGoals, debts, assets }) {
+  const [view, setView] = useState("weekly"); // "weekly" | "monthly"
+
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
+  // ── helpers ──
+  const monthlyIncome = useMemo(() => income.reduce((s, i) => {
+    if (!i.recurring) return s + i.amount;
+    switch (i.frequency) {
+      case "weekly": return s + i.amount * 52 / 12;
+      case "biweekly": return s + i.amount * 26 / 12;
+      case "semimonthly": return s + i.amount * 2;
+      case "monthly": return s + i.amount;
+      case "quarterly": return s + i.amount / 3;
+      case "yearly": return s + i.amount / 12;
+      default: return s + i.amount;
+    }
+  }, 0), [income]);
+
+  const weeklyIncome = monthlyIncome * 12 / 52;
+
+  // ── period helpers ──
+  function getWeekRange(weeksAgo) {
+    const end = new Date(now);
+    end.setDate(end.getDate() - (weeksAgo * 7));
+    const start = new Date(end);
+    start.setDate(start.getDate() - 6);
+    return { start, end };
+  }
+
+  function getMonthRange(monthsAgo) {
+    const start = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1);
+    const end = new Date(now.getFullYear(), now.getMonth() - monthsAgo + 1, 0);
+    return { start, end };
+  }
+
+  function dateStr(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  function txInRange(start, end) {
+    const s = dateStr(start);
+    const e = dateStr(end);
+    return transactions.filter((t) => t.date >= s && t.date <= e);
+  }
+
+  function billsInRange(start, end) {
+    const all = [];
+    const d = new Date(start);
+    const seen = new Set();
+    while (d <= end) {
+      const instances = generateBillInstances(billTemplates, d.getFullYear(), d.getMonth());
+      instances.forEach((b) => {
+        if (!seen.has(b.instanceKey) && b.instanceDate >= dateStr(start) && b.instanceDate <= dateStr(end)) {
+          seen.add(b.instanceKey);
+          all.push(b);
+        }
+      });
+      d.setMonth(d.getMonth() + 1);
+    }
+    return all;
+  }
+
+  // ── build period data ──
+  const periods = useMemo(() => {
+    const count = view === "weekly" ? 4 : 3;
+    const result = [];
+    for (let i = 0; i < count; i++) {
+      const range = view === "weekly" ? getWeekRange(i) : getMonthRange(i);
+      const tx = txInRange(range.start, range.end);
+      const bills = billsInRange(range.start, range.end);
+      const billsPaidCount = bills.filter((b) => paidDates.has(b.instanceKey)).length;
+      const totalSpent = tx.reduce((s, t) => s + t.amount, 0);
+      const billsTotal = bills.reduce((s, b) => s + b.amount, 0);
+      const txCount = tx.length;
+
+      // spending by category
+      const byCat = {};
+      tx.forEach((t) => {
+        byCat[t.categoryId] = (byCat[t.categoryId] || 0) + t.amount;
+      });
+
+      // top category
+      let topCatId = null;
+      let topCatAmt = 0;
+      Object.entries(byCat).forEach(([id, amt]) => {
+        if (amt > topCatAmt) { topCatId = Number(id); topCatAmt = amt; }
+      });
+      const topCat = categories.find((c) => c.id === topCatId);
+
+      // average per tx
+      const avgTx = txCount > 0 ? totalSpent / txCount : 0;
+
+      // biggest single transaction
+      const biggestTx = tx.length > 0 ? tx.reduce((a, b) => a.amount > b.amount ? a : b) : null;
+
+      // daily spending (for weekly sparkline)
+      const days = [];
+      const d = new Date(range.start);
+      while (d <= range.end) {
+        const ds = dateStr(d);
+        const dayTotal = tx.filter((t) => t.date === ds).reduce((s, t) => s + t.amount, 0);
+        days.push({ date: ds, total: dayTotal, label: d.toLocaleDateString("en-US", { weekday: "short" }) });
+        d.setDate(d.getDate() + 1);
+      }
+
+      const label = view === "weekly"
+        ? (i === 0 ? "This Week" : i === 1 ? "Last Week" : `${i} Weeks Ago`)
+        : (i === 0 ? "This Month" : i === 1 ? "Last Month" : new Date(now.getFullYear(), now.getMonth() - i, 1).toLocaleDateString("en-US", { month: "long" }));
+
+      const dateLabel = view === "weekly"
+        ? `${range.start.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${range.end.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+        : range.start.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
+      result.push({
+        label, dateLabel, totalSpent, billsTotal, billsPaidCount, billsCount: bills.length,
+        txCount, byCat, topCat, topCatAmt, avgTx, biggestTx, days, range,
+      });
+    }
+    return result;
+  }, [view, transactions, billTemplates, paidDates, categories, income, now.toDateString()]);
+
+  const current = periods[0];
+  const previous = periods[1];
+
+  // ── deltas ──
+  const spendDelta = previous && previous.totalSpent > 0 ? ((current.totalSpent - previous.totalSpent) / previous.totalSpent) * 100 : 0;
+  const txCountDelta = previous ? current.txCount - previous.txCount : 0;
+
+  // ── savings contributions this period ──
+  const savingsThisPeriod = useMemo(() => {
+    const s = dateStr(current.range.start);
+    const e = dateStr(current.range.end);
+    return savingsGoals.reduce((total, g) => {
+      return total + (g.contributions || [])
+        .filter((c) => c.date >= s && c.date <= e)
+        .reduce((sum, c) => sum + c.amount, 0);
+    }, 0);
+  }, [savingsGoals, current]);
+
+  // ── debt payments this period ──
+  const debtPaidThisPeriod = useMemo(() => {
+    const s = dateStr(current.range.start);
+    const e = dateStr(current.range.end);
+    return debts.reduce((total, d) => {
+      return total + (d.payments || [])
+        .filter((p) => p.date >= s && p.date <= e)
+        .reduce((sum, p) => sum + p.amount, 0);
+    }, 0);
+  }, [debts, current]);
+
+  // ── streaks: consecutive days with no spending ──
+  const noSpendStreak = useMemo(() => {
+    let streak = 0;
+    const d = new Date(now);
+    // start from yesterday (today is still in progress)
+    d.setDate(d.getDate() - 1);
+    for (let i = 0; i < 60; i++) {
+      const ds = dateStr(d);
+      const dayTx = transactions.filter((t) => t.date === ds);
+      if (dayTx.length === 0) { streak++; d.setDate(d.getDate() - 1); }
+      else break;
+    }
+    return streak;
+  }, [transactions, todayStr]);
+
+  // ── under/over budget categories ──
+  const budgetStatus = useMemo(() => {
+    const s = dateStr(current.range.start);
+    const e = dateStr(current.range.end);
+    const periodTx = transactions.filter((t) => t.date >= s && t.date <= e);
+    return categories.map((c) => {
+      const spent = periodTx.filter((t) => t.categoryId === c.id).reduce((sum, t) => sum + t.amount, 0);
+      const limit = view === "weekly" ? (c.limit || 0) * 12 / 52 : (c.limit || 0);
+      return { ...c, spent, limit, over: limit > 0 && spent > limit, under: limit > 0 && spent <= limit * 0.5 };
+    }).filter((c) => c.spent > 0 || c.limit > 0);
+  }, [categories, transactions, current, view]);
+
+  const overBudget = budgetStatus.filter((c) => c.over);
+  const underBudget = budgetStatus.filter((c) => c.under && c.limit > 0);
+
+  // ── insights generator ──
+  const insights = useMemo(() => {
+    const msgs = [];
+
+    if (spendDelta < -10 && previous && previous.totalSpent > 0) {
+      msgs.push({ icon: "🎉", text: `Spending is down ${Math.abs(spendDelta).toFixed(0)}% compared to ${previous.label.toLowerCase()}.`, type: "positive" });
+    } else if (spendDelta > 15 && previous && previous.totalSpent > 0) {
+      msgs.push({ icon: "⚠️", text: `Spending is up ${spendDelta.toFixed(0)}% compared to ${previous.label.toLowerCase()}.`, type: "warning" });
+    }
+
+    if (noSpendStreak >= 2) {
+      msgs.push({ icon: "🔥", text: `${noSpendStreak}-day no-spend streak! Keep it going.`, type: "positive" });
+    }
+
+    if (overBudget.length > 0) {
+      msgs.push({ icon: "🚨", text: `${overBudget.length} categor${overBudget.length === 1 ? "y" : "ies"} over budget: ${overBudget.map((c) => c.name).join(", ")}.`, type: "warning" });
+    }
+
+    if (underBudget.length >= 3) {
+      msgs.push({ icon: "💪", text: `${underBudget.length} categories well under budget. Nice discipline!`, type: "positive" });
+    }
+
+    if (savingsThisPeriod > 0) {
+      msgs.push({ icon: "💰", text: `${fmt(savingsThisPeriod)} saved toward goals ${view === "weekly" ? "this week" : "this month"}.`, type: "positive" });
+    }
+
+    if (debtPaidThisPeriod > 0) {
+      msgs.push({ icon: "📉", text: `${fmt(debtPaidThisPeriod)} paid toward debt ${view === "weekly" ? "this week" : "this month"}.`, type: "positive" });
+    }
+
+    const totalDebt = debts.reduce((s, d) => s + d.balance, 0);
+    const paidOff = debts.filter((d) => d.balance <= 0 && d.originalBalance > 0);
+    if (paidOff.length > 0) {
+      msgs.push({ icon: "🏆", text: `${paidOff.length} debt${paidOff.length > 1 ? "s" : ""} paid off! Total remaining: ${fmt(totalDebt)}.`, type: "positive" });
+    }
+
+    const pendingBills = current.billsCount - current.billsPaidCount;
+    if (pendingBills > 0) {
+      msgs.push({ icon: "📋", text: `${pendingBills} bill${pendingBills !== 1 ? "s" : ""} still unpaid ${view === "weekly" ? "this week" : "this month"}.`, type: "neutral" });
+    }
+
+    if (current.biggestTx && current.biggestTx.amount > current.avgTx * 3 && current.txCount >= 3) {
+      const cat = categories.find((c) => c.id === current.biggestTx.categoryId);
+      msgs.push({ icon: "📌", text: `Biggest purchase: ${fmt(current.biggestTx.amount)} on "${current.biggestTx.description}"${cat ? ` (${cat.name})` : ""}.`, type: "neutral" });
+    }
+
+    if (msgs.length === 0) {
+      msgs.push({ icon: "👍", text: "Looking good! Keep tracking your finances.", type: "positive" });
+    }
+
+    return msgs;
+  }, [spendDelta, noSpendStreak, overBudget, underBudget, savingsThisPeriod, debtPaidThisPeriod, debts, current, previous, view, categories]);
+
+  // ── Chart constants ──
+  const RECAP_CHART_COLORS = ["#3b82f6", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#06b6d4", "#f43f5e", "#84cc16"];
+
+  // ── SVG Daily Spending Bar Chart (weekly view) ──
+  function DailySpendingChart({ days }) {
+    const chartW = 560;
+    const chartH = 180;
+    const pad = { top: 12, right: 12, bottom: 28, left: 52 };
+    const innerW = chartW - pad.left - pad.right;
+    const innerH = chartH - pad.top - pad.bottom;
+    const maxVal = Math.max(...days.map((d) => d.total), 1);
+    const barGap = 10;
+    const barW = Math.max((innerW - barGap * (days.length - 1)) / days.length, 16);
+
+    const yTicks = [];
+    for (let i = 0; i <= 3; i++) {
+      const val = (maxVal * i) / 3;
+      yTicks.push({ val, y: pad.top + innerH - (val / maxVal) * innerH });
+    }
+
+    return (
+      <svg viewBox={`0 0 ${chartW} ${chartH}`} style={{ width: "100%", maxHeight: 200 }} preserveAspectRatio="xMidYMid meet">
+        {yTicks.map((t, i) => (
+          <g key={i}>
+            <line x1={pad.left} y1={t.y} x2={chartW - pad.right} y2={t.y} stroke="#26262e" strokeWidth="0.5" />
+            <text x={pad.left - 8} y={t.y + 3.5} textAnchor="end" fill="#6a6a7a" fontSize="9" fontFamily="system-ui, sans-serif">
+              {t.val >= 1000 ? `$${(t.val / 1000).toFixed(1)}k` : `$${Math.round(t.val)}`}
+            </text>
+          </g>
+        ))}
+        {days.map((d, i) => {
+          const barH = Math.max((d.total / maxVal) * innerH, 2);
+          const x = pad.left + i * (barW + barGap);
+          const y = pad.top + innerH - barH;
+          const isToday = d.date === todayStr;
+          return (
+            <g key={i}>
+              <rect x={x} y={y} width={barW} height={barH} rx={4} fill={isToday ? "var(--accent)" : "#3b82f6"} opacity={isToday ? 1 : 0.4} />
+              {d.total > 0 && (
+                <text x={x + barW / 2} y={y - 5} textAnchor="middle" fill={isToday ? "#e8e8ec" : "#6a6a7a"} fontSize="8.5" fontWeight="600" fontFamily="system-ui, sans-serif">
+                  {d.total >= 1000 ? `$${(d.total / 1000).toFixed(1)}k` : `$${Math.round(d.total)}`}
+                </text>
+              )}
+              <text x={x + barW / 2} y={chartH - 6} textAnchor="middle" fill={isToday ? "#e8e8ec" : "#6a6a7a"} fontSize="10" fontWeight={isToday ? 700 : 500} fontFamily="system-ui, sans-serif">
+                {d.label}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    );
+  }
+
+  // ── SVG Period Comparison Bar Chart (monthly view) ──
+  function PeriodComparisonChart() {
+    const chartW = 560;
+    const chartH = 200;
+    const pad = { top: 16, right: 16, bottom: 36, left: 56 };
+    const innerW = chartW - pad.left - pad.right;
+    const innerH = chartH - pad.top - pad.bottom;
+    const data = [...periods].reverse();
+    const maxVal = Math.max(...data.map((p) => p.totalSpent), 1);
+    const barGap = 16;
+    const barW = Math.max((innerW - barGap * (data.length - 1)) / data.length, 30);
+
+    const yTicks = [];
+    for (let i = 0; i <= 4; i++) {
+      const val = (maxVal * i) / 4;
+      yTicks.push({ val, y: pad.top + innerH - (val / maxVal) * innerH });
+    }
+
+    // average line
+    const avg = data.reduce((s, d) => s + d.totalSpent, 0) / data.length;
+    const avgY = pad.top + innerH - (avg / maxVal) * innerH;
+
+    return (
+      <svg viewBox={`0 0 ${chartW} ${chartH}`} style={{ width: "100%", maxHeight: 220 }} preserveAspectRatio="xMidYMid meet">
+        {yTicks.map((t, i) => (
+          <g key={i}>
+            <line x1={pad.left} y1={t.y} x2={chartW - pad.right} y2={t.y} stroke="#26262e" strokeWidth="0.5" />
+            <text x={pad.left - 8} y={t.y + 3.5} textAnchor="end" fill="#6a6a7a" fontSize="9" fontFamily="system-ui, sans-serif">
+              {t.val >= 1000 ? `$${(t.val / 1000).toFixed(1)}k` : `$${Math.round(t.val)}`}
+            </text>
+          </g>
+        ))}
+        {/* Average line */}
+        <line x1={pad.left} y1={avgY} x2={chartW - pad.right} y2={avgY} stroke="#f59e0b" strokeWidth="1" strokeDasharray="5,4" opacity="0.6" />
+        <text x={chartW - pad.right + 4} y={avgY + 3.5} fill="#f59e0b" fontSize="8" fontFamily="system-ui, sans-serif">avg</text>
+        {data.map((p, i) => {
+          const barH = Math.max((p.totalSpent / maxVal) * innerH, 3);
+          const x = pad.left + i * (barW + barGap);
+          const y = pad.top + innerH - barH;
+          const isCurrent = i === data.length - 1;
+          return (
+            <g key={i}>
+              <defs>
+                <linearGradient id={`recapBar${i}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={isCurrent ? "#3b82f6" : "#6366f1"} stopOpacity={isCurrent ? 1 : 0.6} />
+                  <stop offset="100%" stopColor={isCurrent ? "#2563eb" : "#4f46e5"} stopOpacity={isCurrent ? 0.85 : 0.3} />
+                </linearGradient>
+              </defs>
+              <rect x={x} y={y} width={barW} height={barH} rx={5} fill={`url(#recapBar${i})`} />
+              {p.totalSpent > 0 && (
+                <text x={x + barW / 2} y={y - 6} textAnchor="middle" fill={isCurrent ? "#e8e8ec" : "#6a6a7a"} fontSize="9.5" fontWeight="600" fontFamily="system-ui, sans-serif">
+                  {p.totalSpent >= 1000 ? `$${(p.totalSpent / 1000).toFixed(1)}k` : `$${Math.round(p.totalSpent)}`}
+                </text>
+              )}
+              <text x={x + barW / 2} y={chartH - 8} textAnchor="middle" fill={isCurrent ? "#e8e8ec" : "#6a6a7a"} fontSize="10" fontWeight={isCurrent ? 700 : 500} fontFamily="system-ui, sans-serif">
+                {view === "weekly"
+                  ? p.range.start.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                  : p.range.start.toLocaleDateString("en-US", { month: "short" })}
+              </text>
+              {isCurrent && (
+                <text x={x + barW / 2} y={chartH - 20} textAnchor="middle" fill="#3b82f6" fontSize="8" fontWeight="700" fontFamily="system-ui, sans-serif">
+                  CURRENT
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+    );
+  }
+
+  // ── SVG Donut Chart for category breakdown ──
+  function CategoryDonutChart() {
+    const size = 200;
+    const cx = size / 2;
+    const cy = size / 2;
+    const outerR = 80;
+    const innerR = 52;
+    const cats = sortedCats.slice(0, 6);
+    const total = cats.reduce((s, c) => s + c.spent, 0);
+    if (total <= 0) return null;
+    const otherAmt = current.totalSpent - total;
+
+    const slices = cats.map((c, i) => ({ label: c.name, icon: c.icon, value: c.spent, color: c.color || RECAP_CHART_COLORS[i % RECAP_CHART_COLORS.length] }));
+    if (otherAmt > 0) slices.push({ label: "Other", icon: "···", value: otherAmt, color: "#4b5563" });
+
+    const sliceTotal = slices.reduce((s, sl) => s + sl.value, 0);
+    let cumAngle = -Math.PI / 2;
+
+    function arcPath(startAngle, endAngle, oR, iR) {
+      const x1 = cx + oR * Math.cos(startAngle);
+      const y1 = cy + oR * Math.sin(startAngle);
+      const x2 = cx + oR * Math.cos(endAngle);
+      const y2 = cy + oR * Math.sin(endAngle);
+      const x3 = cx + iR * Math.cos(endAngle);
+      const y3 = cy + iR * Math.sin(endAngle);
+      const x4 = cx + iR * Math.cos(startAngle);
+      const y4 = cy + iR * Math.sin(startAngle);
+      const large = endAngle - startAngle > Math.PI ? 1 : 0;
+      return `M${x1},${y1} A${oR},${oR} 0 ${large} 1 ${x2},${y2} L${x3},${y3} A${iR},${iR} 0 ${large} 0 ${x4},${y4} Z`;
+    }
+
+    const paths = slices.map((sl) => {
+      const angle = (sl.value / sliceTotal) * Math.PI * 2;
+      const start = cumAngle;
+      const end = cumAngle + angle;
+      cumAngle = end;
+      return { ...sl, d: arcPath(start, end - 0.02, outerR, innerR) };
+    });
+
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap", justifyContent: "center" }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          {paths.map((p, i) => (
+            <path key={i} d={p.d} fill={p.color} opacity="0.85" />
+          ))}
+          <text x={cx} y={cy - 6} textAnchor="middle" fill="#e8e8ec" fontSize="18" fontWeight="700" fontFamily="system-ui, sans-serif">
+            {fmt(current.totalSpent).replace(".00", "")}
+          </text>
+          <text x={cx} y={cy + 12} textAnchor="middle" fill="#6a6a7a" fontSize="10" fontFamily="system-ui, sans-serif">
+            total spent
+          </text>
+        </svg>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {slices.map((sl, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+              <span style={{ width: 10, height: 10, borderRadius: 3, background: sl.color, flexShrink: 0, opacity: 0.85 }} />
+              <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{sl.icon} {sl.label}</span>
+              <span style={{ color: "var(--text-muted)", fontVariantNumeric: "tabular-nums", marginLeft: "auto" }}>{((sl.value / sliceTotal) * 100).toFixed(0)}%</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── SVG Spending Trend Line Chart (period-over-period by category) ──
+  function SpendingTrendLineChart() {
+    const chartW = 560;
+    const chartH = 200;
+    const pad = { top: 16, right: 16, bottom: 30, left: 56 };
+    const innerW = chartW - pad.left - pad.right;
+    const innerH = chartH - pad.top - pad.bottom;
+
+    const data = [...periods].reverse(); // oldest first
+    const topCats = sortedCats.slice(0, 4);
+    if (topCats.length === 0 || data.length < 2) return null;
+
+    // Build lines per category across periods
+    const lines = topCats.map((cat, ci) => {
+      const values = data.map((p) => p.byCat[cat.id] || 0);
+      return { ...cat, values, color: cat.color || RECAP_CHART_COLORS[ci % RECAP_CHART_COLORS.length] };
+    });
+
+    const allVals = lines.flatMap((l) => l.values);
+    const maxVal = Math.max(...allVals, 1);
+
+    const scaleX = (i) => pad.left + (i / (data.length - 1)) * innerW;
+    const scaleY = (v) => pad.top + innerH - (v / maxVal) * innerH;
+
+    const yTicks = [];
+    for (let i = 0; i <= 3; i++) {
+      const val = (maxVal * i) / 3;
+      yTicks.push({ val, y: scaleY(val) });
+    }
+
+    return (
+      <div>
+        <svg viewBox={`0 0 ${chartW} ${chartH}`} style={{ width: "100%", maxHeight: 220 }} preserveAspectRatio="xMidYMid meet">
+          {yTicks.map((t, i) => (
+            <g key={i}>
+              <line x1={pad.left} y1={t.y} x2={chartW - pad.right} y2={t.y} stroke="#26262e" strokeWidth="0.5" />
+              <text x={pad.left - 8} y={t.y + 3.5} textAnchor="end" fill="#6a6a7a" fontSize="9" fontFamily="system-ui, sans-serif">
+                {t.val >= 1000 ? `$${(t.val / 1000).toFixed(1)}k` : `$${Math.round(t.val)}`}
+              </text>
+            </g>
+          ))}
+          {/* X labels */}
+          {data.map((p, i) => (
+            <text key={i} x={scaleX(i)} y={chartH - 6} textAnchor="middle" fill="#6a6a7a" fontSize="9" fontFamily="system-ui, sans-serif">
+              {view === "weekly" ? p.range.start.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : p.range.start.toLocaleDateString("en-US", { month: "short" })}
+            </text>
+          ))}
+          {/* Lines */}
+          {lines.map((line, li) => {
+            const points = line.values.map((v, i) => `${scaleX(i)},${scaleY(v)}`);
+            return (
+              <g key={li}>
+                <polyline points={points.join(" ")} fill="none" stroke={line.color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.85" />
+                {line.values.map((v, i) => (
+                  <circle key={i} cx={scaleX(i)} cy={scaleY(v)} r={i === line.values.length - 1 ? 4 : 3} fill={line.color} stroke="#111827" strokeWidth="1.5" />
+                ))}
+              </g>
+            );
+          })}
+        </svg>
+        {/* Legend */}
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", justifyContent: "center", marginTop: 8 }}>
+          {lines.map((l, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--text-muted)" }}>
+              <span style={{ width: 12, height: 3, borderRadius: 2, background: l.color }} />
+              {l.icon} {l.name}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── SVG Income vs Expenses Grouped Bar Chart ──
+  function IncomeVsExpensesChart() {
+    const chartW = 560;
+    const chartH = 200;
+    const pad = { top: 16, right: 16, bottom: 36, left: 56 };
+    const innerW = chartW - pad.left - pad.right;
+    const innerH = chartH - pad.top - pad.bottom;
+
+    const data = [...periods].reverse().map((p) => {
+      const pIncome = view === "weekly" ? weeklyIncome : monthlyIncome;
+      return { ...p, income: pIncome, expenses: p.totalSpent };
+    });
+
+    const maxVal = Math.max(...data.flatMap((d) => [d.income, d.expenses]), 1);
+    const groupGap = 24;
+    const barGap = 4;
+    const groupW = (innerW - groupGap * (data.length - 1)) / data.length;
+    const singleW = (groupW - barGap) / 2;
+
+    const yTicks = [];
+    for (let i = 0; i <= 4; i++) {
+      const val = (maxVal * i) / 4;
+      yTicks.push({ val, y: pad.top + innerH - (val / maxVal) * innerH });
+    }
+
+    return (
+      <div>
+        <svg viewBox={`0 0 ${chartW} ${chartH}`} style={{ width: "100%", maxHeight: 220 }} preserveAspectRatio="xMidYMid meet">
+          {yTicks.map((t, i) => (
+            <g key={i}>
+              <line x1={pad.left} y1={t.y} x2={chartW - pad.right} y2={t.y} stroke="#26262e" strokeWidth="0.5" />
+              <text x={pad.left - 8} y={t.y + 3.5} textAnchor="end" fill="#6a6a7a" fontSize="9" fontFamily="system-ui, sans-serif">
+                {t.val >= 1000 ? `$${(t.val / 1000).toFixed(1)}k` : `$${Math.round(t.val)}`}
+              </text>
+            </g>
+          ))}
+          {data.map((d, i) => {
+            const gx = pad.left + i * (groupW + groupGap);
+            const incH = Math.max((d.income / maxVal) * innerH, 2);
+            const expH = Math.max((d.expenses / maxVal) * innerH, 2);
+            const isCurrent = i === data.length - 1;
+            return (
+              <g key={i}>
+                {/* Income bar */}
+                <rect x={gx} y={pad.top + innerH - incH} width={singleW} height={incH} rx={4} fill="#34d399" opacity={isCurrent ? 0.9 : 0.4} />
+                {/* Expenses bar */}
+                <rect x={gx + singleW + barGap} y={pad.top + innerH - expH} width={singleW} height={expH} rx={4} fill="#f87171" opacity={isCurrent ? 0.9 : 0.4} />
+                {/* Period label */}
+                <text x={gx + groupW / 2} y={chartH - 8} textAnchor="middle" fill={isCurrent ? "#e8e8ec" : "#6a6a7a"} fontSize="9.5" fontWeight={isCurrent ? 700 : 500} fontFamily="system-ui, sans-serif">
+                  {view === "weekly" ? d.range.start.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : d.range.start.toLocaleDateString("en-US", { month: "short" })}
+                </text>
+                {isCurrent && (
+                  <text x={gx + groupW / 2} y={chartH - 20} textAnchor="middle" fill="#3b82f6" fontSize="7.5" fontWeight="700" fontFamily="system-ui, sans-serif">CURRENT</text>
+                )}
+              </g>
+            );
+          })}
+        </svg>
+        <div style={{ display: "flex", justifyContent: "center", gap: 20, marginTop: 6 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--text-muted)" }}>
+            <span style={{ width: 10, height: 10, borderRadius: 3, background: "#34d399" }} /> Income
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--text-muted)" }}>
+            <span style={{ width: 10, height: 10, borderRadius: 3, background: "#f87171" }} /> Expenses
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── category breakdown sorted ──
+  const sortedCats = useMemo(() => {
+    return categories.map((c) => ({
+      ...c,
+      spent: current.byCat[c.id] || 0,
+    })).filter((c) => c.spent > 0).sort((a, b) => b.spent - a.spent);
+  }, [categories, current]);
+
+  // ── net worth snapshot ──
+  const totalAssets = assets.reduce((s, a) => s + a.value, 0);
+  const totalDebt = debts.reduce((s, d) => s + d.balance, 0);
+  const netWorth = totalAssets - totalDebt;
+
+  const periodIncome = view === "weekly" ? weeklyIncome : monthlyIncome;
+  const savingsRate = periodIncome > 0 ? (savingsThisPeriod / periodIncome) * 100 : 0;
+
+  const pillStyle = (active) => ({
+    padding: "7px 18px", borderRadius: 999, border: "1px solid var(--border)",
+    background: active ? "var(--text-primary)" : "transparent",
+    color: active ? "var(--card)" : "var(--text-muted)",
+    fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.15s",
+  });
+
+  return (
+    <div>
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em" }}>Financial Recap</h1>
+        <p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--text-muted)" }}>
+          Your {view === "weekly" ? "weekly" : "monthly"} financial highlights
+        </p>
+      </div>
+
+      {/* Weekly / Monthly toggle */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
+        <button style={pillStyle(view === "weekly")} onClick={() => setView("weekly")}>Weekly</button>
+        <button style={pillStyle(view === "monthly")} onClick={() => setView("monthly")}>Monthly</button>
+      </div>
+
+      {/* ─── Period Header Card ─── */}
+      <Card style={{ marginBottom: 16 }}>
+        <div style={{ padding: "20px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+            <span style={{ fontSize: 17, fontWeight: 700, color: "var(--text-primary)" }}>{current.label}</span>
+            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{current.dateLabel}</span>
+          </div>
+          <div style={{ fontSize: 36, fontWeight: 700, color: "var(--text-primary)", fontVariantNumeric: "tabular-nums", marginBottom: 4 }}>
+            {fmt(current.totalSpent)}
+          </div>
+          <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
+            spent across {current.txCount} transaction{current.txCount !== 1 ? "s" : ""}
+          </div>
+          {previous && previous.totalSpent > 0 && (
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 4, marginTop: 10,
+              padding: "4px 10px", borderRadius: 999,
+              background: spendDelta <= 0 ? "var(--green-bg)" : "var(--red-bg)",
+              color: spendDelta <= 0 ? "var(--green)" : "var(--red)",
+              fontSize: 12, fontWeight: 600,
+            }}>
+              <span>{spendDelta <= 0 ? "▼" : "▲"}</span>
+              <span>{Math.abs(spendDelta).toFixed(1)}% vs {previous.label.toLowerCase()}</span>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* ─── Key Metrics Row ─── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 16 }}>
+        <MetricBox label="Bills Paid" value={`${current.billsPaidCount}/${current.billsCount}`}
+          sub={fmt(current.billsTotal)} accent={current.billsPaidCount === current.billsCount ? "var(--green)" : "var(--amber)"} />
+        <MetricBox label="Saved" value={fmt(savingsThisPeriod)}
+          sub={savingsRate > 0 ? `${savingsRate.toFixed(0)}% of income` : "–"} accent="var(--accent)" />
+        <MetricBox label="Debt Paid" value={fmt(debtPaidThisPeriod)}
+          sub={`${fmt(totalDebt)} remaining`} accent="var(--amber)" />
+        <MetricBox label="Net Worth" value={fmtCompact(netWorth)}
+          sub={netWorth >= 0 ? "positive" : "negative"} accent={netWorth >= 0 ? "var(--green)" : "var(--red)"} />
+      </div>
+
+      {/* ─── Insights ─── */}
+      <Card style={{ marginBottom: 16 }}>
+        <CardHeader title="Insights" />
+        <div style={{ padding: "0 20px 16px" }}>
+          {insights.map((insight, i) => (
+            <div key={i} style={{
+              display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 0",
+              borderBottom: i < insights.length - 1 ? "1px solid var(--border-subtle)" : "none",
+            }}>
+              <span style={{ fontSize: 18, flexShrink: 0, lineHeight: 1.2 }}>{insight.icon}</span>
+              <span style={{
+                fontSize: 14, fontWeight: 500, lineHeight: 1.45,
+                color: insight.type === "warning" ? "var(--amber)" : insight.type === "positive" ? "var(--green)" : "var(--text-primary)",
+              }}>{insight.text}</span>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* ─── Spending Pattern Chart ─── */}
+      <Card style={{ marginBottom: 16 }}>
+        <CardHeader title={view === "weekly" ? "Daily Spending" : "Spending Comparison"} />
+        <div style={{ padding: "0 12px 16px", overflowX: "auto" }}>
+          {view === "weekly" && current.days.length > 0 ? (
+            <DailySpendingChart days={current.days} />
+          ) : (
+            <PeriodComparisonChart />
+          )}
+        </div>
+      </Card>
+
+      {/* ─── Category Donut Chart ─── */}
+      {sortedCats.length > 0 && (
+        <Card style={{ marginBottom: 16 }}>
+          <CardHeader title="Spending Breakdown" />
+          <div style={{ padding: "4px 20px 20px" }}>
+            <CategoryDonutChart />
+          </div>
+        </Card>
+      )}
+
+      {/* ─── Income vs Expenses ─── */}
+      <Card style={{ marginBottom: 16 }}>
+        <CardHeader title="Income vs Expenses" />
+        <div style={{ padding: "0 12px 16px", overflowX: "auto" }}>
+          <IncomeVsExpensesChart />
+        </div>
+      </Card>
+
+      {/* ─── Category Trend Lines ─── */}
+      {periods.length >= 2 && sortedCats.length > 0 && (
+        <Card style={{ marginBottom: 16 }}>
+          <CardHeader title="Category Trends" />
+          <div style={{ padding: "0 12px 16px", overflowX: "auto" }}>
+            <SpendingTrendLineChart />
+          </div>
+        </Card>
+      )}
+
+      {/* ─── Top Spending Categories ─── */}
+      <Card style={{ marginBottom: 16 }}>
+        <CardHeader title="Where It Went" />
+        <div style={{ padding: "0 20px 16px" }}>
+          {sortedCats.length === 0 ? (
+            <div style={{ padding: "20px 0", textAlign: "center", color: "var(--text-muted)", fontSize: 14 }}>No spending this period</div>
+          ) : sortedCats.slice(0, 8).map((c, i) => {
+            const pctOfTotal = current.totalSpent > 0 ? (c.spent / current.totalSpent * 100) : 0;
+            return (
+              <div key={c.id} style={{ padding: "10px 0", borderBottom: i < Math.min(sortedCats.length, 8) - 1 ? "1px solid var(--border-subtle)" : "none" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 14 }}>{c.icon}</span>
+                    <span style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>{c.name}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", fontVariantNumeric: "tabular-nums" }}>{fmt(c.spent)}</span>
+                    <span style={{ fontSize: 11, color: "var(--text-muted)", fontVariantNumeric: "tabular-nums", minWidth: 32, textAlign: "right" }}>{pctOfTotal.toFixed(0)}%</span>
+                  </div>
+                </div>
+                <ProgressBar value={c.spent} max={current.totalSpent} color={c.color || "var(--accent)"} height={4} />
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      {/* ─── Period-over-Period Comparison Table ─── */}
+      <Card style={{ marginBottom: 16 }}>
+        <CardHeader title={`${view === "weekly" ? "Week" : "Month"}-over-${view === "weekly" ? "Week" : "Month"}`} />
+        <div style={{ padding: "0 20px 16px" }}>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: "left", padding: "8px 0", color: "var(--text-muted)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "1px solid var(--border)" }}>Period</th>
+                  <th style={{ textAlign: "right", padding: "8px 0", color: "var(--text-muted)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "1px solid var(--border)" }}>Spent</th>
+                  <th style={{ textAlign: "right", padding: "8px 0", color: "var(--text-muted)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "1px solid var(--border)" }}>Txns</th>
+                  <th style={{ textAlign: "right", padding: "8px 0", color: "var(--text-muted)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "1px solid var(--border)" }}>Avg/Tx</th>
+                  <th style={{ textAlign: "left", padding: "8px 0 8px 12px", color: "var(--text-muted)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "1px solid var(--border)" }}>Top Category</th>
+                </tr>
+              </thead>
+              <tbody>
+                {periods.map((p, i) => (
+                  <tr key={i} style={{ opacity: i === 0 ? 1 : 0.7 }}>
+                    <td style={{ padding: "10px 0", borderBottom: "1px solid var(--border-subtle)", fontWeight: i === 0 ? 600 : 400, color: "var(--text-primary)" }}>
+                      {p.label}
+                      <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 1 }}>{p.dateLabel}</div>
+                    </td>
+                    <td style={{ textAlign: "right", padding: "10px 0", borderBottom: "1px solid var(--border-subtle)", fontWeight: 600, color: "var(--text-primary)", fontVariantNumeric: "tabular-nums" }}>
+                      {fmt(p.totalSpent)}
+                    </td>
+                    <td style={{ textAlign: "right", padding: "10px 0", borderBottom: "1px solid var(--border-subtle)", color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
+                      {p.txCount}
+                    </td>
+                    <td style={{ textAlign: "right", padding: "10px 0", borderBottom: "1px solid var(--border-subtle)", color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
+                      {fmt(p.avgTx)}
+                    </td>
+                    <td style={{ padding: "10px 0 10px 12px", borderBottom: "1px solid var(--border-subtle)", color: "var(--text-muted)" }}>
+                      {p.topCat ? (
+                        <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                          <span>{p.topCat.icon}</span>
+                          <span>{p.topCat.name}</span>
+                          <span style={{ fontVariantNumeric: "tabular-nums", fontSize: 11 }}>({fmt(p.topCatAmt)})</span>
+                        </span>
+                      ) : "–"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </Card>
+
+      {/* ─── Budget Alerts ─── */}
+      {(overBudget.length > 0 || underBudget.length > 0) && (
+        <Card style={{ marginBottom: 16 }}>
+          <CardHeader title="Budget Alerts" />
+          <div style={{ padding: "0 20px 16px" }}>
+            {overBudget.map((c) => (
+              <div key={c.id} style={{
+                display: "flex", alignItems: "center", gap: 10, padding: "10px 0",
+                borderBottom: "1px solid var(--border-subtle)",
+              }}>
+                <span style={{
+                  width: 28, height: 28, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center",
+                  background: "var(--red-bg)", fontSize: 14,
+                }}>{c.icon}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>{c.name}</div>
+                  <div style={{ fontSize: 12, color: "var(--red)" }}>
+                    {fmt(c.spent)} / {fmt(c.limit)} — over by {fmt(c.spent - c.limit)}
+                  </div>
+                </div>
+                <span style={{
+                  padding: "2px 8px", borderRadius: 999, background: "var(--red-bg)",
+                  color: "var(--red)", fontSize: 10, fontWeight: 700, textTransform: "uppercase",
+                }}>Over</span>
+              </div>
+            ))}
+            {underBudget.map((c) => (
+              <div key={c.id} style={{
+                display: "flex", alignItems: "center", gap: 10, padding: "10px 0",
+                borderBottom: "1px solid var(--border-subtle)",
+              }}>
+                <span style={{
+                  width: 28, height: 28, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center",
+                  background: "var(--green-bg)", fontSize: 14,
+                }}>{c.icon}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>{c.name}</div>
+                  <div style={{ fontSize: 12, color: "var(--green)" }}>
+                    {fmt(c.spent)} / {fmt(c.limit)} — {fmt(c.limit - c.spent)} under
+                  </div>
+                </div>
+                <span style={{
+                  padding: "2px 8px", borderRadius: 999, background: "var(--green-bg)",
+                  color: "var(--green)", fontSize: 10, fontWeight: 700, textTransform: "uppercase",
+                }}>Under</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* ─── Biggest Purchase ─── */}
+      {current.biggestTx && (
+        <Card style={{ marginBottom: 16 }}>
+          <div style={{ padding: "20px" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)", marginBottom: 12 }}>Biggest Purchase</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: 12, background: "var(--surface)", border: "1px solid var(--border)",
+                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20,
+              }}>
+                {(() => { const cat = categories.find((c) => c.id === current.biggestTx.categoryId); return cat ? cat.icon : "💳"; })()}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>{current.biggestTx.description}</div>
+                <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
+                  {new Date(current.biggestTx.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  {(() => { const cat = categories.find((c) => c.id === current.biggestTx.categoryId); return cat ? ` · ${cat.name}` : ""; })()}
+                </div>
+              </div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: "var(--red)", fontVariantNumeric: "tabular-nums" }}>
+                {fmt(current.biggestTx.amount)}
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // MONTHLY SUMMARY PAGE
 // ─────────────────────────────────────────────
 
@@ -8558,6 +9427,11 @@ export default function MaverickOS() {
           )}
           {page === "trends" && (
             <SpendingTrendsPage categories={categories} transactions={transactions} />
+          )}
+          {page === "recap" && (
+            <FinancialRecapPage categories={categories} transactions={transactions} income={income}
+              billTemplates={billTemplates} paidDates={paidDates} savingsGoals={savingsGoals}
+              debts={debts} assets={assets} />
           )}
           {page === "settings" && (
             <SettingsPage settings={settings} setSettings={setSettings}
