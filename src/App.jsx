@@ -393,7 +393,7 @@ const INITIAL_ASSETS = [
 const FREQUENCY_LABELS = {
   weekly: "Weekly",
   biweekly: "Biweekly",
-  semimonthly: "Semi-Monthly",
+  semimonthly: "1st & 15th",
   monthly: "Monthly",
   quarterly: "Quarterly",
   yearly: "Yearly",
@@ -461,6 +461,17 @@ function generateBillInstances(templates, year, month) {
           }
           cur = new Date(cur.getTime() + 7 * 86400000);
         }
+        break;
+      }
+      case "semimonthly": {
+        // Two instances per month: 1st and 15th (regardless of anchor day)
+        const days = [1, 15];
+        days.forEach((d) => {
+          const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+          if (new Date(dateStr + "T00:00:00") >= anchor) {
+            instances.push({ ...bill, instanceDate: dateStr, instanceKey: `${bill.id}-${dateStr}` });
+          }
+        });
         break;
       }
       case "quarterly": {
@@ -1255,6 +1266,7 @@ function DashboardPage({ categories, transactions, income, billTemplates, paidDa
 
   const topSpendCategories = categories
     .map((c) => ({ ...c, spent: periodTx.filter((t) => t.categoryId === c.id).reduce((s, t) => s + t.amount, 0) }))
+    .filter((c) => c.spent > 0)
     .sort((a, b) => b.spent - a.spent)
     .slice(0, 5);
   const todayTx = transactions.filter((t) => t.date === todayStr);
@@ -1290,7 +1302,7 @@ function DashboardPage({ categories, transactions, income, billTemplates, paidDa
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
               <div style={{ padding: "10px 14px", borderRadius: 10, background: "var(--surface)", border: "1px solid var(--border)" }}>
                 <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 3 }}>Spent Today</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: todaySpent > 0 ? "var(--red)" : "var(--green)", fontVariantNumeric: "tabular-nums" }}>{fmt(todaySpent)}</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: todaySpent > 0 ? "var(--red)" : "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>{fmt(todaySpent)}</div>
                 <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{todayTx.length} transaction{todayTx.length !== 1 ? "s" : ""}</div>
               </div>
               <div style={{ padding: "10px 14px", borderRadius: 10, background: "var(--surface)", border: "1px solid var(--border)" }}>
@@ -1391,6 +1403,9 @@ function DashboardPage({ categories, transactions, income, billTemplates, paidDa
           <Card>
             <CardHeader title="Top Spending" />
             <div style={{ padding: "0 20px 16px" }}>
+              {topSpendCategories.length === 0 && (
+                <div style={{ padding: "20px 0", textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>No spending recorded this period</div>
+              )}
               {topSpendCategories.map((c) => (
                 <div key={c.id} style={{ padding: "8px 0", borderBottom: "1px solid var(--border-subtle)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
@@ -1399,10 +1414,10 @@ function DashboardPage({ categories, transactions, income, billTemplates, paidDa
                       <span style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>{c.name}</span>
                     </div>
                     <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", fontVariantNumeric: "tabular-nums" }}>
-                      {fmt(c.spent)} <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>/ {fmt(c.limit)}</span>
+                      {fmt(c.spent)}{c.limit > 0 && <span style={{ color: "var(--text-muted)", fontWeight: 400 }}> / {fmt(c.limit)}</span>}
                     </span>
                   </div>
-                  <ProgressBar value={c.spent} max={c.limit} height={5} />
+                  {c.limit > 0 && <ProgressBar value={c.spent} max={c.limit} height={5} />}
                 </div>
               ))}
             </div>
@@ -1879,6 +1894,7 @@ function RecurringBillsPage({ billTemplates, setBillTemplates, paidDates, onNavi
     switch (bill.frequency) {
       case "weekly": return bill.amount * 52 / 12;
       case "biweekly": return bill.amount * 26 / 12;
+      case "semimonthly": return bill.amount * 2;
       case "monthly": return bill.amount;
       case "quarterly": return bill.amount / 3;
       case "yearly": return bill.amount / 12;
@@ -1896,7 +1912,7 @@ function RecurringBillsPage({ billTemplates, setBillTemplates, paidDates, onNavi
     grouped[b.frequency].push(b);
   });
 
-  const freqOrder = ["weekly", "biweekly", "monthly", "quarterly", "yearly"];
+  const freqOrder = ["weekly", "biweekly", "semimonthly", "monthly", "quarterly", "yearly"];
 
   const deleteBill = (id) => {
     const bill = billTemplates.find((b) => b.id === id);
@@ -3658,7 +3674,7 @@ function IncomePage({ income, setIncome, showUndo }) {
     switch (i.frequency) {
       case "weekly": return s + i.amount * 52 / 12;
       case "biweekly": return s + i.amount * 26 / 12;
-      case "semimonthly": return s + i.amount;
+      case "semimonthly": return s + i.amount * 2;
       case "monthly": return s + i.amount;
       case "quarterly": return s + i.amount / 3;
       case "yearly": return s + i.amount / 12;
@@ -3674,7 +3690,7 @@ function IncomePage({ income, setIncome, showUndo }) {
     switch (inc.frequency) {
       case "weekly": return inc.amount * 52 / 12;
       case "biweekly": return inc.amount * 26 / 12;
-      case "semimonthly": return inc.amount;
+      case "semimonthly": return inc.amount * 2;
       case "monthly": return inc.amount;
       case "quarterly": return inc.amount / 3;
       case "yearly": return inc.amount / 12;
@@ -4211,21 +4227,27 @@ const ASSET_CATEGORIES = {
 
 function NetWorthPage({ assets, setAssets, debts, showUndo, networthHistory = [], setNetworthHistory }) {
   const [modal, setModal] = useState(null);
+  const [justRecorded, setJustRecorded] = useState(false);
 
   const totalAssets = assets.reduce((s, a) => s + a.value, 0);
   const totalDebts = debts.reduce((s, d) => s + d.balance, 0);
   const netWorth = totalAssets - totalDebts;
 
+  // Check if today is already recorded
+  const todayStr = new Date().toISOString().split("T")[0];
+  const todayRecorded = networthHistory.some((h) => h.date === todayStr);
+
   // Record a snapshot of today's net worth into history
   const recordSnapshot = () => {
-    const today = new Date().toISOString().split("T")[0];
-    const existing = networthHistory.find((h) => h.date === today);
-    const entry = { date: today, netWorth, assets: totalAssets, liabilities: totalDebts };
-    if (existing) {
-      setNetworthHistory((prev) => prev.map((h) => h.date === today ? entry : h));
+    const entry = { date: todayStr, netWorth, assets: totalAssets, liabilities: totalDebts };
+    if (todayRecorded) {
+      setNetworthHistory((prev) => prev.map((h) => h.date === todayStr ? entry : h));
     } else {
       setNetworthHistory((prev) => [...prev, entry].sort((a, b) => a.date.localeCompare(b.date)));
     }
+    setJustRecorded(true);
+    setTimeout(() => setJustRecorded(false), 2500);
+    if (showUndo) showUndo(`Net worth snapshot recorded — ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" })}`);
   };
 
   // Net worth history chart — multi-line SVG
@@ -4389,8 +4411,14 @@ function NetWorthPage({ assets, setAssets, debts, showUndo, networthHistory = []
             title="Net Worth History"
             action={
               <button onClick={recordSnapshot}
-                style={{ padding: "5px 12px", borderRadius: 7, border: "1px solid var(--border)", background: "transparent", color: "var(--text-muted)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
-                Record Today
+                style={{
+                  padding: "5px 12px", borderRadius: 7, fontSize: 11, fontWeight: 600, cursor: "pointer",
+                  border: `1px solid ${justRecorded ? "var(--green)" : todayRecorded ? "var(--accent)" : "var(--border)"}`,
+                  background: justRecorded ? "var(--green-bg)" : todayRecorded ? "var(--accent)18" : "transparent",
+                  color: justRecorded ? "var(--green)" : todayRecorded ? "var(--accent)" : "var(--text-muted)",
+                  transition: "all 0.3s",
+                }}>
+                {justRecorded ? "✓ Recorded!" : todayRecorded ? "Update Today" : "Record Today"}
               </button>
             }
           />
@@ -4459,7 +4487,13 @@ function NetWorthPage({ assets, setAssets, debts, showUndo, networthHistory = []
       {historyWithToday.length < 2 && (
         <Card style={{ marginBottom: 24 }}>
           <CardHeader title="Net Worth History" action={
-            <button onClick={recordSnapshot} style={{ padding: "5px 12px", borderRadius: 7, border: "1px solid var(--border)", background: "transparent", color: "var(--text-muted)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Record Today</button>
+            <button onClick={recordSnapshot} style={{
+              padding: "5px 12px", borderRadius: 7, fontSize: 11, fontWeight: 600, cursor: "pointer",
+              border: `1px solid ${justRecorded ? "var(--green)" : "var(--border)"}`,
+              background: justRecorded ? "var(--green-bg)" : "transparent",
+              color: justRecorded ? "var(--green)" : "var(--text-muted)",
+              transition: "all 0.3s",
+            }}>{justRecorded ? "✓ Recorded!" : "Record Today"}</button>
           } />
           <div style={{ padding: "20px", textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
             Hit <strong style={{ color: "var(--text-primary)" }}>Record Today</strong> each month to build your net worth history chart.
@@ -4707,7 +4741,7 @@ function DebtStrategyPage({ debts, income }) {
     switch (i.frequency) {
       case "weekly": return s + i.amount * 52 / 12;
       case "biweekly": return s + i.amount * 26 / 12;
-      case "semimonthly": return s + i.amount;
+      case "semimonthly": return s + i.amount * 2;
       case "monthly": return s + i.amount;
       case "quarterly": return s + i.amount / 3;
       case "yearly": return s + i.amount / 12;
@@ -5878,7 +5912,7 @@ function CalculatorPage() {
 function TransactionsPage({ transactions, setTransactions, categories, showUndo }) {
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("all");
-  const [filterMonth, setFilterMonth] = useState("all");
+  const [filterMonth, setFilterMonth] = useState(() => new Date().toISOString().substring(0, 7));
   const [sortField, setSortField] = useState("date");
   const [sortDir, setSortDir] = useState("desc");
   const [showAdd, setShowAdd] = useState(false);
@@ -7254,8 +7288,9 @@ function MonthlySummaryPage({ categories, transactions, income, billTemplates, p
 // SETTINGS PAGE
 // ─────────────────────────────────────────────
 
-function SettingsPage({ settings, setSettings, onExport, onExportCsv, onImport, onReset, onRestartWizard }) {
+function SettingsPage({ settings, setSettings, onExport, onExportCsv, onImport, onImportCsv, onReset, onRestartWizard }) {
   const fileRef = useRef(null);
+  const csvRef = useRef(null);
   const hiddenPages = settings.hiddenPages || [];
   const dashWidgets = settings.dashboardWidgets || DEFAULT_SETTINGS.dashboardWidgets;
 
@@ -7492,6 +7527,16 @@ function SettingsPage({ settings, setSettings, onExport, onExportCsv, onImport, 
               </svg>
               Import Backup (JSON)
             </button>
+            <button onClick={() => csvRef.current?.click()} style={{
+              padding: "10px 18px", borderRadius: 10, border: "1px solid var(--border)",
+              background: "transparent", color: "var(--text-secondary)", fontSize: 13, fontWeight: 600, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 6,
+            }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              Import Transactions (CSV)
+            </button>
             <input ref={fileRef} type="file" accept=".json" style={{ display: "none" }} onChange={(e) => {
               const file = e.target.files?.[0];
               if (!file) return;
@@ -7500,8 +7545,16 @@ function SettingsPage({ settings, setSettings, onExport, onExportCsv, onImport, 
               reader.readAsText(file);
               e.target.value = "";
             }} />
+            <input ref={csvRef} type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = (ev) => { onImportCsv && onImportCsv(ev.target.result); };
+              reader.readAsText(file);
+              e.target.value = "";
+            }} />
           </div>
-          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>JSON backup saves everything and can be restored. CSV exports transactions for spreadsheets.</div>
+          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>JSON backup saves everything and can be fully restored. CSV export/import works with transactions — columns: Date, Description, Category, Amount.</div>
         </div>
       </Card>
 
@@ -7959,6 +8012,7 @@ function RecurringTransactionFields({ categories, existing, onSubmit, onClose })
             <select value={form.frequency} onChange={(e) => update("frequency", e.target.value)} style={{ ...INPUT_STYLE, cursor: "pointer" }}>
               <option value="weekly">Weekly</option>
               <option value="biweekly">Biweekly</option>
+              <option value="semimonthly">1st & 15th</option>
               <option value="monthly">Monthly</option>
               <option value="quarterly">Quarterly</option>
               <option value="yearly">Yearly</option>
@@ -8267,7 +8321,7 @@ function FundTargetFields({ category, target, onSubmit, onClose }) {
 // BUDGET PAGE
 // ─────────────────────────────────────────────
 
-function CategoryCard({ category, transactions, onExpand, isExpanded, onEditTarget, onFundTarget, onAddTx, target, rollover }) {
+function CategoryCard({ category, transactions, onExpand, isExpanded, onEditTarget, onFundTarget, onAddTx, onEditCategory, target, rollover }) {
   const spent = transactions.reduce((s, t) => s + t.amount, 0);
   const tStatus = getTargetStatus(target, spent, category);
   const isTargetByDate = target?.type === "target_by_date";
@@ -8300,7 +8354,17 @@ function CategoryCard({ category, transactions, onExpand, isExpanded, onEditTarg
               </div>
             </div>
           </div>
-          <TargetStatusBadge status={tStatus.status} />
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <button
+              onClick={(e) => { e.stopPropagation(); onEditCategory && onEditCategory(category); }}
+              style={{ background: "none", border: "1px solid transparent", padding: "4px 6px", borderRadius: 6, cursor: "pointer", color: "var(--text-muted)", lineHeight: 1, transition: "all 0.15s" }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text-secondary)"; e.currentTarget.style.background = "var(--surface)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.color = "var(--text-muted)"; e.currentTarget.style.background = "none"; }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <TargetStatusBadge status={tStatus.status} />
+          </div>
         </div>
 
         {isTargetByDate ? (
@@ -8405,10 +8469,15 @@ function BudgetPage({ categories, transactions, setCategories, setTransactions, 
   const currentMonthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
   const prevMonthDate = new Date(year, month - 1, startDay);
   const prevMonthKey = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, "0")}`;
+  // Compute prev period date range
+  const prevPeriodStartDate = new Date(year, month - 1, startDay);
+  const prevPeriodEndDate = new Date(year, month, startDay - 1);
+  const prevPeriodStartStr = `${prevPeriodStartDate.getFullYear()}-${String(prevPeriodStartDate.getMonth() + 1).padStart(2, "0")}-${String(startDay).padStart(2, "0")}`;
+  const prevPeriodEndStr = prevPeriodEndDate.toISOString().split("T")[0];
   const prevMonthName = prevMonthDate.toLocaleDateString("en-US", { month: "long" });
 
-  const prevMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
-  const nextMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
+  const prevMonth = () => { setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1)); setExpandedId(null); };
+  const nextMonth = () => { setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1)); setExpandedId(null); };
 
   // Filter transactions to period
   const monthTransactions = useMemo(() => {
@@ -8428,10 +8497,11 @@ function BudgetPage({ categories, transactions, setCategories, setTransactions, 
   const totalRolledOver = Object.values(currentRollovers).reduce((s, v) => s + v, 0);
 
   // Calculate what COULD be rolled over from previous month (unspent budget)
-  // Previous month's transactions for rollover calculation
+  // Previous period's transactions — use date range for custom start days
   const prevMonthTransactions = useMemo(() => {
-    return transactions.filter((t) => t.date.startsWith(prevMonthKey));
-  }, [transactions, prevMonthKey]);
+    if (startDay === 1) return transactions.filter((t) => t.date.startsWith(prevMonthKey));
+    return transactions.filter((t) => t.date >= prevPeriodStartStr && t.date <= prevPeriodEndStr);
+  }, [transactions, prevMonthKey, startDay, prevPeriodStartStr, prevPeriodEndStr]);
 
   const prevTxByCategory = useMemo(() => {
     const map = {};
@@ -8492,7 +8562,7 @@ function BudgetPage({ categories, transactions, setCategories, setTransactions, 
     switch (i.frequency) {
       case "weekly": return s + i.amount * 52 / 12;
       case "biweekly": return s + i.amount * 26 / 12;
-      case "semimonthly": return s + i.amount;
+      case "semimonthly": return s + i.amount * 2;
       case "monthly": return s + i.amount;
       case "quarterly": return s + i.amount / 3;
       case "yearly": return s + i.amount / 12;
@@ -8699,6 +8769,7 @@ function BudgetPage({ categories, transactions, setCategories, setTransactions, 
               onEditTarget={(c) => setModal({ type: "editTarget", category: c })}
               onFundTarget={(c) => setModal({ type: "fund", category: c })}
               onAddTx={(c) => setModal({ type: "addTx", categoryId: c.id })}
+              onEditCategory={(c) => setModal({ type: "editCat", category: c })}
             />
           </SwipeToDelete>
         ))}
@@ -8742,6 +8813,22 @@ function BudgetPage({ categories, transactions, setCategories, setTransactions, 
               category={modal.category}
               target={budgetTargets[modal.category.id]}
               onSubmit={handleFund}
+              onClose={() => setModal(null)}
+            />
+          </ModalForm>
+        </Overlay>
+      )}
+
+      {modal?.type === "editCat" && (
+        <Overlay onClose={() => setModal(null)}>
+          <ModalForm title={`Edit Category`}>
+            <EditCategoryFields
+              category={modal.category}
+              onSubmit={(updated) => {
+                setCategories((prev) => prev.map((c) => c.id === updated.id ? updated : c));
+                showUndo(`Updated "${updated.name}"`);
+                setModal(null);
+              }}
               onClose={() => setModal(null)}
             />
           </ModalForm>
@@ -8834,6 +8921,36 @@ function AddCategoryFields({ onSubmit, onClose }) {
       </div>
       <ModalActions onClose={onClose} canSubmit={canSubmit} label="Add Category"
         onSubmit={() => { if (canSubmit) onSubmit({ id: form.name.toLowerCase().replace(/\s+/g, "-"), name: form.name.trim(), icon: form.icon || "●", limit: parseFloat(form.limit) }); }} />
+    </>
+  );
+}
+
+function EditCategoryFields({ category, onSubmit, onClose }) {
+  const [form, setForm] = useState({ name: category.name, icon: category.icon || "●" });
+  const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const canSubmit = form.name.trim().length > 0;
+  const QUICK_ICONS = ["🏠","🛒","🍽","⚡","🎵","❤","👤","🚗","📱","✈","💰","🎓","🐾","👶","🏋","💊","🎮","📦","🛠","🌿","☕","🍕","🎁","📚","🏦","📊","💼","🎨"];
+  return (
+    <>
+      <div style={{ padding: "16px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "64px 1fr", gap: 12 }}>
+          <div><FieldLabel>Icon</FieldLabel><input value={form.icon} onChange={(e) => update("icon", e.target.value)} maxLength={2} style={{ ...INPUT_STYLE, textAlign: "center", fontSize: 18 }} /></div>
+          <div><FieldLabel>Name</FieldLabel><input value={form.name} onChange={(e) => update("name", e.target.value)} placeholder="Category name" style={INPUT_STYLE} /></div>
+        </div>
+        <div>
+          <FieldLabel>Quick Pick</FieldLabel>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {QUICK_ICONS.map((ic) => (
+              <button key={ic} onClick={() => update("icon", ic)}
+                style={{ width: 36, height: 36, borderRadius: 8, border: `1px solid ${form.icon === ic ? "var(--accent)" : "var(--border)"}`, background: form.icon === ic ? "var(--accent)18" : "transparent", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {ic}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <ModalActions onClose={onClose} canSubmit={canSubmit} label="Save Changes"
+        onSubmit={() => { if (canSubmit) onSubmit({ ...category, name: form.name.trim(), icon: form.icon || "●" }); }} />
     </>
   );
 }
@@ -8997,7 +9114,8 @@ function OnboardingWizard({ onComplete }) {
     const bills = data.bills
       .filter((b) => b.name.trim() && parseFloat(b.amount) > 0)
       .map((b, i) => {
-        const day = Math.min(parseInt(b.dueDay) || 1, 28);
+        // semimonthly always anchors to the 1st — engine generates both 1st and 15th
+        const day = b.frequency === "semimonthly" ? 1 : Math.min(parseInt(b.dueDay) || 1, 28);
         const anchorDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
         return {
           id: i + 1,
@@ -9015,6 +9133,7 @@ function OnboardingWizard({ onComplete }) {
       const catId = `bill_${b.id}`;
       const monthlyAmt = b.frequency === "weekly" ? b.amount * 52 / 12
         : b.frequency === "biweekly" ? b.amount * 26 / 12
+        : b.frequency === "semimonthly" ? b.amount * 2
         : b.frequency === "quarterly" ? b.amount / 3
         : b.frequency === "yearly" ? b.amount / 12
         : b.amount;
@@ -9190,11 +9309,13 @@ function OnboardingWizard({ onComplete }) {
                       <select value={b.frequency} onChange={(e) => updateListItem("bills", b.id, "frequency", e.target.value)} style={{ ...INPUT_STYLE, cursor: "pointer" }}>
                         <option value="weekly">Weekly</option>
                         <option value="biweekly">Biweekly</option>
+                        <option value="semimonthly">1st & 15th</option>
                         <option value="monthly">Monthly</option>
                         <option value="quarterly">Quarterly</option>
                         <option value="yearly">Yearly</option>
                       </select>
                     </div>
+                    {b.frequency !== "semimonthly" && (
                     <div style={{ flex: "0 1 80px" }}>
                       {b.id === 1 && <FieldLabel>Due Day</FieldLabel>}
                       <select value={b.dueDay} onChange={(e) => updateListItem("bills", b.id, "dueDay", e.target.value)} style={{ ...INPUT_STYLE, cursor: "pointer" }}>
@@ -9203,6 +9324,7 @@ function OnboardingWizard({ onComplete }) {
                         ))}
                       </select>
                     </div>
+                    )}
                     {data.bills.length > 1 && (
                       <button onClick={() => removeListItem("bills", b.id)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "8px 0", fontSize: 18 }}>×</button>
                     )}
@@ -9518,6 +9640,75 @@ export default function MaverickOS() {
     clearState();
   }, []);
 
+  // Import transactions from CSV string (Date, Description, Category, Amount)
+  const handleImportCsv = useCallback((csvStr) => {
+    try {
+      const lines = csvStr.trim().split(/\r?\n/);
+      if (lines.length < 2) return;
+      // Auto-detect header row
+      const firstLine = lines[0].toLowerCase();
+      const hasHeader = firstLine.includes("date") || firstLine.includes("description") || firstLine.includes("amount");
+      const dataLines = hasHeader ? lines.slice(1) : lines;
+      // Build category name→id map (case-insensitive)
+      const catNameMap = {};
+      categories.forEach((c) => { catNameMap[c.name.toLowerCase()] = c.id; });
+      const parseCSVRow = (line) => {
+        const result = [];
+        let cur = "", inQuote = false;
+        for (const ch of line) {
+          if (ch === '"') { inQuote = !inQuote; }
+          else if (ch === "," && !inQuote) { result.push(cur.trim()); cur = ""; }
+          else { cur += ch; }
+        }
+        result.push(cur.trim());
+        return result;
+      };
+      const imported = [];
+      dataLines.forEach((line) => {
+        if (!line.trim()) return;
+        const cols = parseCSVRow(line);
+        if (cols.length < 3) return;
+        // Flexible column detection: try Date, Description, Category, Amount order
+        // Also handle: Date, Description, Amount (no category)
+        let dateStr, description, categoryName, amountStr;
+        if (cols.length >= 4) {
+          [dateStr, description, categoryName, amountStr] = cols;
+        } else {
+          [dateStr, description, amountStr] = cols;
+          categoryName = "";
+        }
+        // Normalize date to YYYY-MM-DD
+        let date = dateStr.replace(/"/g, "").trim();
+        if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(date)) {
+          const [m, d, y] = date.split("/");
+          date = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+        } else if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(date)) {
+          const [m, d, y] = date.split("-");
+          date = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+        }
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+        const amount = Math.abs(parseFloat(amountStr.replace(/[^0-9.\-]/g, "")));
+        if (isNaN(amount) || amount <= 0) return;
+        const desc = description.replace(/^"|"$/g, "").trim();
+        if (!desc) return;
+        const catKey = categoryName.replace(/^"|"$/g, "").trim().toLowerCase();
+        const categoryId = catNameMap[catKey] || categories[0]?.id || "";
+        imported.push({ id: nextId(), date, description: desc, amount, categoryId });
+      });
+      if (imported.length > 0) {
+        setTransactions((prev) => {
+          // Deduplicate by date+description+amount
+          const existing = new Set(prev.map((t) => `${t.date}|${t.description}|${t.amount}`));
+          const fresh = imported.filter((t) => !existing.has(`${t.date}|${t.description}|${t.amount}`));
+          return [...prev, ...fresh];
+        });
+      }
+      alert(`Imported ${imported.length} transaction${imported.length !== 1 ? "s" : ""}.`);
+    } catch (e) {
+      alert("Could not parse CSV. Expected columns: Date, Description, Category, Amount.");
+    }
+  }, [categories]);
+
   // Handle onboarding completion — apply wizard data, clear sample data
   const handleOnboardingComplete = useCallback((data) => {
     // Apply whatever the wizard sends — it handles both full setup and skip paths
@@ -9648,7 +9839,7 @@ export default function MaverickOS() {
           )}
           {page === "settings" && (
             <SettingsPage settings={settings} setSettings={setSettings}
-              onExport={handleExport} onExportCsv={handleExportCsv} onImport={handleImport} onReset={handleReset}
+              onExport={handleExport} onExportCsv={handleExportCsv} onImport={handleImport} onImportCsv={handleImportCsv} onReset={handleReset}
               onRestartWizard={() => { clearState(); setShowOnboarding(true); }} />
           )}
         </div>
