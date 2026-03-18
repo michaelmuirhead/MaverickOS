@@ -1,7 +1,17 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+// ─────────────────────────────────────────────
+// SUPABASE CLIENT
+// ─────────────────────────────────────────────
+
+const SUPABASE_URL = "https://qjkmbvgshiczvzrstajn.supabase.co";
+const SUPABASE_KEY = "sb_publishable_ZHDZeQRm34mvKREG6s7Rng__t_Unx-a";
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ─────────────────────────────────────────────
 // PERSISTENCE LAYER
+// localStorage = offline fallback; Supabase = source of truth when online
 // ─────────────────────────────────────────────
 
 const STORAGE_KEY = "maverickos_data";
@@ -11,7 +21,6 @@ function loadState() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const data = JSON.parse(raw);
-    // Restore Set from array
     if (data.paidDates) data.paidDates = new Set(data.paidDates);
     return data;
   } catch { return null; }
@@ -26,6 +35,164 @@ function saveState(state) {
 
 function clearState() {
   try { localStorage.removeItem(STORAGE_KEY); } catch {}
+}
+
+// Save full state to Supabase (upsert — insert or update)
+async function saveStateToSupabase(userId, state) {
+  try {
+    const toSave = { ...state, paidDates: [...state.paidDates] };
+    const { error } = await supabase
+      .from("user_data")
+      .upsert({ user_id: userId, data: toSave }, { onConflict: "user_id" });
+    if (error) console.error("Supabase save error:", error.message);
+  } catch (e) { console.error("Supabase save failed:", e); }
+}
+
+// Load full state from Supabase
+async function loadStateFromSupabase(userId) {
+  try {
+    const { data, error } = await supabase
+      .from("user_data")
+      .select("data")
+      .eq("user_id", userId)
+      .single();
+    if (error || !data) return null;
+    const state = data.data;
+    if (state.paidDates) state.paidDates = new Set(state.paidDates);
+    return state;
+  } catch (e) { console.error("Supabase load failed:", e); return null; }
+}
+
+// ─────────────────────────────────────────────
+// AUTH SCREEN COMPONENT
+// ─────────────────────────────────────────────
+
+function AuthScreen({ onAuth }) {
+  const [mode, setMode] = useState("login"); // "login" | "signup" | "reset"
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  const handleSubmit = async () => {
+    setError(""); setMessage("");
+    if (!email.trim()) { setError("Please enter your email."); return; }
+    if (mode !== "reset" && password.length < 6) { setError("Password must be at least 6 characters."); return; }
+    setLoading(true);
+    try {
+      if (mode === "login") {
+        const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        if (error) { setError(error.message); }
+        else { onAuth(data.user); }
+      } else if (mode === "signup") {
+        const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
+        if (error) { setError(error.message); }
+        else if (data.user && !data.user.confirmed_at) {
+          setMessage("Check your email for a confirmation link, then come back and log in.");
+          setMode("login");
+        } else if (data.user) { onAuth(data.user); }
+      } else if (mode === "reset") {
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: window.location.origin,
+        });
+        if (error) { setError(error.message); }
+        else { setMessage("Password reset email sent. Check your inbox."); setMode("login"); }
+      }
+    } catch (e) { setError("Something went wrong. Please try again."); }
+    setLoading(false);
+  };
+
+  const inputStyle = {
+    width: "100%", padding: "12px 14px", borderRadius: 10, fontSize: 15,
+    border: "1px solid var(--border)", background: "var(--surface)",
+    color: "var(--text-primary)", outline: "none", boxSizing: "border-box",
+    fontFamily: "inherit",
+  };
+
+  return (
+    <div style={{
+      minHeight: "100vh", minHeight: "-webkit-fill-available",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      background: "var(--bg)", color: "var(--text-primary)",
+      fontFamily: "'DM Sans', 'SF Pro Display', -apple-system, sans-serif",
+      padding: 20,
+    }}>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+      <div style={{ width: "100%", maxWidth: 400 }}>
+        {/* Logo */}
+        <div style={{ textAlign: "center", marginBottom: 36 }}>
+          <div style={{ width: 56, height: 56, borderRadius: 16, background: "#1e40af", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, margin: "0 auto 14px" }}>💰</div>
+          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700, letterSpacing: "-0.02em" }}>MaverickOS</h1>
+          <p style={{ margin: "6px 0 0", fontSize: 14, color: "var(--text-muted)" }}>Your personal finance command center</p>
+        </div>
+
+        {/* Card */}
+        <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, padding: 28 }}>
+          <h2 style={{ margin: "0 0 20px", fontSize: 18, fontWeight: 700 }}>
+            {mode === "login" ? "Sign In" : mode === "signup" ? "Create Account" : "Reset Password"}
+          </h2>
+
+          {error && (
+            <div style={{ background: "var(--red-bg)", border: "1px solid var(--red)", borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 13, color: "var(--red)" }}>
+              {error}
+            </div>
+          )}
+          {message && (
+            <div style={{ background: "var(--green-bg)", border: "1px solid var(--green)", borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 13, color: "var(--green)" }}>
+              {message}
+            </div>
+          )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 6 }}>Email</label>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                placeholder="you@example.com" style={inputStyle} autoComplete="email" />
+            </div>
+            {mode !== "reset" && (
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 6 }}>Password</label>
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                  placeholder={mode === "signup" ? "At least 6 characters" : "••••••••"} style={inputStyle} autoComplete={mode === "login" ? "current-password" : "new-password"} />
+              </div>
+            )}
+            <button onClick={handleSubmit} disabled={loading} style={{
+              padding: "13px", borderRadius: 10, border: "none",
+              background: loading ? "var(--border)" : "#1e40af",
+              color: loading ? "var(--text-muted)" : "#fff",
+              fontSize: 15, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer",
+              marginTop: 4, transition: "background 0.15s",
+            }}>
+              {loading ? "Please wait…" : mode === "login" ? "Sign In" : mode === "signup" ? "Create Account" : "Send Reset Email"}
+            </button>
+          </div>
+
+          {/* Mode switchers */}
+          <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}>
+            {mode === "login" && (<>
+              <button onClick={() => { setMode("signup"); setError(""); setMessage(""); }} style={{ background: "none", border: "none", color: "var(--accent)", fontSize: 14, cursor: "pointer", fontWeight: 600 }}>
+                Don't have an account? Sign up
+              </button>
+              <button onClick={() => { setMode("reset"); setError(""); setMessage(""); }} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 13, cursor: "pointer" }}>
+                Forgot password?
+              </button>
+            </>)}
+            {mode !== "login" && (
+              <button onClick={() => { setMode("login"); setError(""); setMessage(""); }} style={{ background: "none", border: "none", color: "var(--accent)", fontSize: 14, cursor: "pointer", fontWeight: 600 }}>
+                Back to sign in
+              </button>
+            )}
+          </div>
+        </div>
+        <p style={{ textAlign: "center", fontSize: 12, color: "var(--text-muted)", marginTop: 16 }}>
+          Your data is encrypted and private — only you can access it.
+        </p>
+      </div>
+    </div>
+  );
 }
 
 // Settings defaults
@@ -3069,6 +3236,7 @@ function ThemeStyles() {
 function ResponsiveStyles() {
   return (
     <style>{`
+      @keyframes spin { to { transform: rotate(360deg); } }
       /* Prevent iOS keyboard from jolting the layout */
       html, body {
         height: -webkit-fill-available;
@@ -9785,7 +9953,7 @@ function NotificationsSettings({ settings, setSettings }) {
   );
 }
 
-function SettingsPage({ settings, setSettings, onExport, onExportCsv, onImport, onImportCsv, onReset, onRestartWizard }) {
+function SettingsPage({ settings, setSettings, onExport, onExportCsv, onImport, onImportCsv, onReset, onRestartWizard, user, onSignOut }) {
   const fileRef = useRef(null);
   const csvRef = useRef(null);
   const hiddenPages = settings.hiddenPages || [];
@@ -9813,6 +9981,26 @@ function SettingsPage({ settings, setSettings, onExport, onExportCsv, onImport, 
         <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em" }}>Settings</h1>
         <p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--text-muted)" }}>Customize your experience</p>
       </div>
+
+      {/* Account */}
+      {user && (
+        <Card style={{ marginBottom: 16 }}>
+          <CardHeader title="Account" />
+          <div style={{ padding: "0 20px 20px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{user.email}</div>
+                <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Signed in · data synced across devices</div>
+              </div>
+              <button onClick={onSignOut} style={{
+                padding: "8px 16px", borderRadius: 8, border: "1px solid var(--border)",
+                background: "transparent", color: "var(--text-secondary)", fontSize: 13,
+                fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
+              }}>Sign Out</button>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Household */}
       <Card style={{ marginBottom: 16 }}>
@@ -12354,8 +12542,14 @@ export default function MaverickOS() {
   const [loaded, setLoaded] = useState(false);
   const [mobileMore, setMobileMore] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [undoToast, setUndoToast] = useState(null); // { message, snapshot }
+  const [undoToast, setUndoToast] = useState(null);
   const isMobile = useIsMobile();
+
+  // Auth state
+  const [user, setUser] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [syncStatus, setSyncStatus] = useState("idle"); // "idle" | "saving" | "saved" | "error"
+  const saveTimerRef = useRef(null);
 
   const [categories, setCategories] = useState(INITIAL_CATEGORIES);
   const [transactions, setTransactions] = useState(INITIAL_TRANSACTIONS);
@@ -12410,15 +12604,26 @@ export default function MaverickOS() {
     setUndoToast(null);
   }, [undoToast, restoreSnapshot]);
 
-  // Load from localStorage on mount — show onboarding if no saved data
+  // Auth: check session on mount, listen for changes
   useEffect(() => {
-    const saved = loadState();
-    if (!saved) {
-      setShowOnboarding(true);
-      setLoaded(true);
-      return;
-    }
-    if (saved) {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setAuthChecked(true);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Load: Supabase first, localStorage fallback
+  useEffect(() => {
+    if (!authChecked) return;
+    if (!user) { setLoaded(true); return; }
+    (async () => {
+      let saved = await loadStateFromSupabase(user.id);
+      if (!saved) saved = loadState();
+      if (!saved) { setShowOnboarding(true); setLoaded(true); return; }
       if (saved.categories) setCategories(saved.categories);
       if (saved.transactions) setTransactions(saved.transactions);
       if (saved.income) setIncome(saved.income);
@@ -12436,9 +12641,9 @@ export default function MaverickOS() {
       if (saved.networthHistory) setNetworthHistory(saved.networthHistory);
       if (saved.settings) setSettings(saved.settings);
       seedNextId(saved);
-    }
-    setLoaded(true);
-  }, []);
+      setLoaded(true);
+    })();
+  }, [authChecked, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync savings goals → budget categories after load (YNAB-style)
   useEffect(() => {
@@ -12502,11 +12707,20 @@ export default function MaverickOS() {
     }
   }, [loaded, settings.notifications]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Save to localStorage whenever state changes (after initial load)
+  // Save: localStorage immediately + Supabase debounced 2s
   useEffect(() => {
     if (!loaded) return;
-    saveState({ categories, transactions, income, billTemplates, paidDates, savingsGoals, debts, assets, paycheckStreams, customItems, monthlyRollovers, budgetRollovers, budgetTargets, recurringTransactions, networthHistory, settings });
-  }, [loaded, categories, transactions, income, billTemplates, paidDates, savingsGoals, debts, assets, paycheckStreams, customItems, monthlyRollovers, budgetRollovers, budgetTargets, recurringTransactions, networthHistory, settings]);
+    const state = { categories, transactions, income, billTemplates, paidDates, savingsGoals, debts, assets, paycheckStreams, customItems, monthlyRollovers, budgetRollovers, budgetTargets, recurringTransactions, networthHistory, settings };
+    saveState(state);
+    if (!user) return;
+    clearTimeout(saveTimerRef.current);
+    setSyncStatus('saving');
+    saveTimerRef.current = setTimeout(async () => {
+      await saveStateToSupabase(user.id, state);
+      setSyncStatus('saved');
+      setTimeout(() => setSyncStatus('idle'), 2000);
+    }, 2000);
+  }, [loaded, categories, transactions, income, billTemplates, paidDates, savingsGoals, debts, assets, paycheckStreams, customItems, monthlyRollovers, budgetRollovers, budgetTargets, recurringTransactions, networthHistory, settings]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Export all data as JSON download
   const handleExport = useCallback(() => {
@@ -12563,7 +12777,7 @@ export default function MaverickOS() {
   }, []);
 
   // Reset to defaults
-  const handleReset = useCallback(() => {
+  const handleReset = useCallback(async () => {
     setCategories(INITIAL_CATEGORIES); setTransactions(INITIAL_TRANSACTIONS);
     setIncome(INITIAL_INCOME); setBillTemplates(INITIAL_BILL_TEMPLATES);
     setPaidDates(INITIAL_PAID_DATES); setSavingsGoals(INITIAL_SAVINGS_GOALS);
@@ -12571,7 +12785,11 @@ export default function MaverickOS() {
     setPaycheckStreams(INITIAL_PAYCHECK_STREAMS); setCustomItems(INITIAL_CUSTOM_ITEMS);
     setMonthlyRollovers({}); setBudgetRollovers({}); setBudgetTargets(INITIAL_BUDGET_TARGETS); setRecurringTransactions(INITIAL_RECURRING_TRANSACTIONS); setNetworthHistory(INITIAL_NETWORTH_HISTORY); setSettings(DEFAULT_SETTINGS);
     clearState();
-  }, []);
+    // Also delete cloud data so the reset is complete on all devices
+    if (user) {
+      await supabase.from("user_data").delete().eq("user_id", user.id);
+    }
+  }, [user]);
 
   // Import transactions from CSV string (Date, Description, Category, Amount)
   const handleImportCsv = useCallback((csvStr) => {
@@ -12671,7 +12889,30 @@ export default function MaverickOS() {
     }
 
     setShowOnboarding(false);
-  }, []);
+
+    // Force immediate Supabase save after onboarding — don't wait for debounce
+    if (user) {
+      const fullState = {
+        categories: data.categories || INITIAL_CATEGORIES,
+        transactions: data.transactions || INITIAL_TRANSACTIONS,
+        income: data.income || INITIAL_INCOME,
+        billTemplates: data.billTemplates || INITIAL_BILL_TEMPLATES,
+        paidDates: [],
+        savingsGoals: data.savingsGoals || [],
+        debts: data.debts || [],
+        assets: data.assets || [],
+        paycheckStreams: [],
+        customItems: {},
+        monthlyRollovers: {},
+        budgetRollovers: {},
+        budgetTargets: data.budgetTargets || {},
+        recurringTransactions: [],
+        networthHistory: INITIAL_NETWORTH_HISTORY,
+        settings: data.settings ? { ...DEFAULT_SETTINGS, ...data.settings } : DEFAULT_SETTINGS,
+      };
+      saveStateToSupabase(user.id, fullState);
+    }
+  }, [user]);
 
   // Get active color theme and mode
   const activeTheme = COLOR_THEMES[settings.colorTheme] || COLOR_THEMES.blue_gold;
@@ -12680,10 +12921,75 @@ export default function MaverickOS() {
   // Keep module-level currency formatter in sync with settings
   setCurrency(settings.currency || "USD");
 
+  // While checking auth session — use saved theme if available to prevent flicker
+  if (!authChecked) {
+    const savedThemeRaw = (() => { try { const r = localStorage.getItem(STORAGE_KEY); return r ? JSON.parse(r)?.settings : null; } catch { return null; } })();
+    const splashTheme = COLOR_THEMES[savedThemeRaw?.colorTheme] || COLOR_THEMES.blue_gold;
+    const splashVars = savedThemeRaw?.theme === "light" ? splashTheme.light : splashTheme.dark;
+    return (
+      <div style={{ ...splashVars, minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+          <div style={{ width: 48, height: 48, borderRadius: 14, background: "#1e40af", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>💰</div>
+          <div style={{ width: 28, height: 28, border: "3px solid var(--border)", borderTopColor: "var(--accent)", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+        </div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  // Not logged in — show auth screen with Blue & Gold dark theme
+  if (!user) {
+    const authVars = COLOR_THEMES.blue_gold.dark;
+    return (
+      <div style={{ ...authVars, fontFamily: "'DM Sans', -apple-system, sans-serif" }}>
+        <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+        <AuthScreen onAuth={(u) => { setUser(u); setLoaded(false); }} />
+      </div>
+    );
+  }
+
   // Show onboarding wizard for first-time users
+  // Data still loading from Supabase — show spinner
+  if (!loaded) {
+    return (
+      <div style={{ ...themeVars, minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+          <div style={{ width: 48, height: 48, borderRadius: 14, background: "#1e40af", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>💰</div>
+          <div style={{ width: 28, height: 28, border: "3px solid var(--border)", borderTopColor: "var(--accent)", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+          <div style={{ fontSize: 13, color: "var(--text-muted)", fontFamily: "'DM Sans', sans-serif" }}>Loading your data…</div>
+        </div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
   if (showOnboarding) {
     return <OnboardingWizard onComplete={handleOnboardingComplete} />;
   }
+
+  // Sync status indicator — small floating pill
+  const SyncIndicator = () => {
+    if (syncStatus === "idle") return null;
+    return (
+      <div style={{
+        position: "fixed", bottom: isMobile ? 90 : 16, right: 16, zIndex: 200,
+        background: syncStatus === "saved" ? "var(--green-bg)" : "var(--surface)",
+        border: `1px solid ${syncStatus === "saved" ? "var(--green)" : "var(--border)"}`,
+        borderRadius: 20, padding: "5px 12px",
+        display: "flex", alignItems: "center", gap: 6,
+        fontSize: 12, fontWeight: 600,
+        color: syncStatus === "saved" ? "var(--green)" : "var(--text-muted)",
+        boxShadow: "0 2px 8px var(--shadow)",
+        transition: "all 0.3s",
+      }}>
+        {syncStatus === "saving" ? (
+          <><div style={{ width: 8, height: 8, border: "1.5px solid var(--text-muted)", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />Syncing…</>
+        ) : (
+          <><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Saved</>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div data-color-theme={settings.colorTheme || "blue_gold"} data-mode={isDark ? "dark" : "light"} style={{
@@ -12696,6 +13002,7 @@ export default function MaverickOS() {
       <PwaHead />
       <ThemeStyles />
       <ResponsiveStyles />
+      <SyncIndicator />
 
       {!isMobile && (
         <Sidebar activePage={page} onNavigate={setPage} collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((c) => !c)} hiddenPages={settings.hiddenPages || []} />
@@ -12777,7 +13084,9 @@ export default function MaverickOS() {
           {page === "settings" && (
             <SettingsPage settings={settings} setSettings={setSettings}
               onExport={handleExport} onExportCsv={handleExportCsv} onImport={handleImport} onImportCsv={handleImportCsv} onReset={handleReset}
-              onRestartWizard={() => { clearState(); setShowOnboarding(true); }} />
+              onRestartWizard={() => { clearState(); if (user) supabase.from("user_data").delete().eq("user_id", user.id); setShowOnboarding(true); }}
+              user={user}
+              onSignOut={async () => { await supabase.auth.signOut(); clearState(); setUser(null); }} />
           )}
         </div>
       </main>
