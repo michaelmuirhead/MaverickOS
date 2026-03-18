@@ -643,6 +643,85 @@ function Overlay({ children, onClose }) {
   );
 }
 
+// ─────────────────────────────────────────────
+// DRAG TO REORDER
+// ─────────────────────────────────────────────
+
+function DragHandle({ onPointerDown }) {
+  return (
+    <div
+      onPointerDown={onPointerDown}
+      style={{ padding: "8px 6px", cursor: "grab", color: "var(--text-muted)", touchAction: "none", display: "flex", alignItems: "center", flexShrink: 0 }}
+      title="Drag to reorder"
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+        <circle cx="9" cy="5" r="1" fill="currentColor" stroke="none"/>
+        <circle cx="15" cy="5" r="1" fill="currentColor" stroke="none"/>
+        <circle cx="9" cy="12" r="1" fill="currentColor" stroke="none"/>
+        <circle cx="15" cy="12" r="1" fill="currentColor" stroke="none"/>
+        <circle cx="9" cy="19" r="1" fill="currentColor" stroke="none"/>
+        <circle cx="15" cy="19" r="1" fill="currentColor" stroke="none"/>
+      </svg>
+    </div>
+  );
+}
+
+function useDragToReorder(items, onReorder) {
+  const [dragIndex, setDragIndex] = useState(null);
+  const [overIndex, setOverIndex] = useState(null);
+  const dragIndexRef = useRef(null);
+  const overIndexRef = useRef(null);
+  const itemsRef = useRef(items);
+  const listIdRef = useRef(`dnd-${Math.random().toString(36).slice(2)}`);
+  useEffect(() => { itemsRef.current = items; }, [items]);
+
+  const startDrag = useCallback((e, index) => {
+    e.preventDefault();
+    setDragIndex(index);
+    dragIndexRef.current = index;
+    overIndexRef.current = index;
+    const listId = listIdRef.current;
+
+    const onPointerMove = (ev) => {
+      const els = Array.from(document.querySelectorAll(`[data-drag-list="${listId}"]`));
+      if (els.length === 0) return;
+      let closestIdx = 0;
+      let closestDist = Infinity;
+      els.forEach((el) => {
+        const rect = el.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        const dist = Math.abs(ev.clientY - midY);
+        const idx = parseInt(el.dataset.dragItem);
+        if (dist < closestDist) { closestDist = dist; closestIdx = idx; }
+      });
+      overIndexRef.current = closestIdx;
+      setOverIndex(closestIdx);
+    };
+
+    const onPointerUp = () => {
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", onPointerUp);
+      const from = dragIndexRef.current;
+      const to = overIndexRef.current;
+      if (from !== null && to !== null && from !== to) {
+        const next = [...itemsRef.current];
+        const [moved] = next.splice(from, 1);
+        next.splice(to, 0, moved);
+        onReorder(next);
+      }
+      setDragIndex(null);
+      setOverIndex(null);
+      dragIndexRef.current = null;
+      overIndexRef.current = null;
+    };
+
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerup", onPointerUp);
+  }, [onReorder]);
+
+  return { dragIndex, overIndex, startDrag, listId: listIdRef.current };
+}
+
 function SwipeToDelete({ onDelete, children, disabled = false }) {
   const containerRef = useRef(null);
   const startX = useRef(0);
@@ -2297,9 +2376,39 @@ function EditBillForm({ bill, onSave, onClose }) {
 // SAVINGS GOALS PAGE
 // ─────────────────────────────────────────────
 
+function DraggableSimpleList({ items, onReorder, renderItem }) {
+  const { dragIndex, overIndex, startDrag, listId } = useDragToReorder(items, onReorder);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
+      <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>
+        Drag the handles to reorder. Press <strong style={{ color: "var(--text-secondary)" }}>Reorder</strong> again to exit.
+      </div>
+      {items.map((item, idx) => {
+        const isDragging = dragIndex === idx;
+        const isOver = overIndex === idx && dragIndex !== null && dragIndex !== idx;
+        return (
+          <div key={item.id} data-drag-list={listId} data-drag-item={idx} style={{
+            opacity: isDragging ? 0.35 : 1,
+            borderRadius: 12, border: `2px solid ${isOver ? "var(--accent)" : "var(--border)"}`,
+            background: "var(--card)", transition: "border-color 0.15s, opacity 0.15s",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "12px 16px" }}>
+              <DragHandle onPointerDown={(e) => startDrag(e, idx)} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {renderItem(item)}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function SavingsPage({ savingsGoals, setSavingsGoals, showUndo, categories, setCategories, setTransactions, budgetTargets, setBudgetTargets }) {
   const [modal, setModal] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
+  const [reordering, setReordering] = useState(false);
 
   const totalSaved = savingsGoals.reduce((s, g) => s + g.current, 0);
   const totalTarget = savingsGoals.reduce((s, g) => s + g.target, 0);
@@ -2390,10 +2499,18 @@ function SavingsPage({ savingsGoals, setSavingsGoals, showUndo, categories, setC
           <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em" }}>Savings Goals</h1>
           <p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--text-muted)" }}>Track progress toward your financial goals</p>
         </div>
-        <button onClick={() => setModal("add")} style={{
-          padding: "10px 18px", borderRadius: 10, border: "none",
-          background: "var(--accent)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer",
-        }}>+ New Goal</button>
+        <div style={{ display: "flex", gap: 8 }}>
+          {savingsGoals.length > 1 && (
+            <button onClick={() => { setReordering((v) => !v); setExpandedId(null); }} style={{
+              padding: "10px 14px", borderRadius: 10, border: `1px solid ${reordering ? "var(--accent)" : "var(--border)"}`,
+              background: reordering ? "var(--accent)18" : "transparent", color: reordering ? "var(--accent)" : "var(--text-secondary)", fontSize: 13, fontWeight: 600, cursor: "pointer",
+            }}>⠿ Reorder</button>
+          )}
+          <button onClick={() => setModal("add")} style={{
+            padding: "10px 18px", borderRadius: 10, border: "none",
+            background: "var(--accent)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer",
+          }}>+ New Goal</button>
+        </div>
       </div>
 
       {/* Summary */}
@@ -2405,7 +2522,23 @@ function SavingsPage({ savingsGoals, setSavingsGoals, showUndo, categories, setC
       </div>
 
       {/* Goal cards */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {reordering && (
+        <DraggableSimpleList
+          items={savingsGoals}
+          onReorder={setSavingsGoals}
+          renderItem={(g) => (
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 22 }}>{g.icon}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{g.name}</div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{fmt(g.current)} / {fmt(g.target)}</div>
+              </div>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--accent)" }}>{pct(g.current, g.target).toFixed(0)}%</span>
+            </div>
+          )}
+        />
+      )}
+      <div style={{ display: reordering ? "none" : "flex", flexDirection: "column", gap: 14 }}>
         {savingsGoals.map((goal) => {
           const percent = pct(goal.current, goal.target);
           const isComplete = goal.current >= goal.target;
@@ -4038,6 +4171,7 @@ function DebtPage({ debts, setDebts, showUndo }) {
   const [modal, setModal] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
   const [confirmingDelete, setConfirmingDelete] = useState(null);
+  const [reordering, setReordering] = useState(false);
 
   const totalDebt = debts.reduce((s, d) => s + d.balance, 0);
   const totalOriginal = debts.reduce((s, d) => s + (d.originalBalance || d.balance), 0);
@@ -4065,7 +4199,15 @@ function DebtPage({ debts, setDebts, showUndo }) {
           <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em" }}>Debt Payoff</h1>
           <p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--text-muted)" }}>Track and crush your debt</p>
         </div>
-        <button onClick={() => setModal("add")} style={{ padding: "10px 18px", borderRadius: 10, border: "none", background: "var(--accent)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>+ Add Debt</button>
+        <div style={{ display: "flex", gap: 8 }}>
+          {debts.length > 1 && (
+            <button onClick={() => { setReordering((v) => !v); setExpandedId(null); }} style={{
+              padding: "10px 14px", borderRadius: 10, border: `1px solid ${reordering ? "var(--accent)" : "var(--border)"}`,
+              background: reordering ? "var(--accent)18" : "transparent", color: reordering ? "var(--accent)" : "var(--text-secondary)", fontSize: 13, fontWeight: 600, cursor: "pointer",
+            }}>⠿ Reorder</button>
+          )}
+          <button onClick={() => setModal("add")} style={{ padding: "10px 18px", borderRadius: 10, border: "none", background: "var(--accent)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>+ Add Debt</button>
+        </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 28 }}>
@@ -4091,7 +4233,23 @@ function DebtPage({ debts, setDebts, showUndo }) {
       </Card>
 
       {/* Debt cards */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {reordering && (
+        <DraggableSimpleList
+          items={debts}
+          onReorder={setDebts}
+          renderItem={(d) => (
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 38, height: 38, borderRadius: 10, background: d.balance <= 0 ? "var(--green-bg)" : "var(--red-bg)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{d.icon}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{d.name}</div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>{d.apr}% APR · {fmt(d.minPayment)}/mo</div>
+              </div>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "var(--red)", fontVariantNumeric: "tabular-nums" }}>{fmt(d.balance)}</span>
+            </div>
+          )}
+        />
+      )}
+      <div style={{ display: reordering ? "none" : "flex", flexDirection: "column", gap: 14 }}>
         {sortedDebts.map((debt) => {
           const paidOff = (debt.originalBalance || debt.balance) - debt.balance;
           const progress = pct(paidOff, debt.originalBalance || debt.balance);
@@ -8785,6 +8943,39 @@ function CategoryCard({ category, transactions, onExpand, isExpanded, onEditTarg
   );
 }
 
+function DraggableCategoryList({ categories, setCategories, txByCategory, budgetTargets }) {
+  const { dragIndex, overIndex, startDrag, listId } = useDragToReorder(categories, setCategories);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
+      <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+        Drag the handles to reorder. Switch to another sort mode to restore automatic ordering.
+      </div>
+      {categories.map((cat, idx) => {
+        const spent = (txByCategory[cat.id] || []).reduce((s, t) => s + t.amount, 0);
+        const tStatus = getTargetStatus(budgetTargets[cat.id], spent, cat);
+        const limit = tStatus.effectiveLimit || tStatus.monthlyNeeded || cat.limit;
+        const isDragging = dragIndex === idx;
+        const isOver = overIndex === idx && dragIndex !== null && dragIndex !== idx;
+        return (
+          <div key={cat.id} data-drag-list={listId} data-drag-item={idx} style={{ opacity: isDragging ? 0.35 : 1, borderRadius: 12, border: `2px solid ${isOver ? "var(--accent)" : "var(--border)"}`, background: "var(--card)", transition: "border-color 0.15s, opacity 0.15s" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "12px 16px" }}>
+              <DragHandle onPointerDown={(e) => startDrag(e, idx)} />
+              <span style={{ fontSize: 18, marginRight: 4, flexShrink: 0 }}>{cat.icon}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{cat.name}</div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>
+                  {fmt(spent)} {limit > 0 ? `/ ${fmt(limit)}` : ""}
+                </div>
+              </div>
+              <TargetStatusBadge status={tStatus.status} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function BudgetPage({ categories, transactions, setCategories, setTransactions, income, budgetTargets, setBudgetTargets, budgetRollovers, setBudgetRollovers, showUndo, settings }) {
   const [expandedId, setExpandedId] = useState(null);
   const [modal, setModal] = useState(null);
@@ -9125,11 +9316,19 @@ function BudgetPage({ categories, transactions, setCategories, setTransactions, 
       )}
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        {[{ key: "status", label: "By Status" }, { key: "spent", label: "By Spent" }, { key: "name", label: "By Name" }].map((s) => (
+        {[{ key: "status", label: "By Status" }, { key: "spent", label: "By Spent" }, { key: "name", label: "By Name" }, { key: "manual", label: "⠿ Custom Order" }].map((s) => (
           <button key={s.key} onClick={() => setSortBy(s.key)} style={pillStyle(sortBy === s.key)}>{s.label}</button>
         ))}
       </div>
 
+      {sortBy === "manual" && (
+        <DraggableCategoryList
+          categories={categories} setCategories={setCategories}
+          txByCategory={txByCategory} budgetTargets={budgetTargets}
+        />
+      )}
+
+      {sortBy !== "manual" && (
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 14, alignItems: "start" }}>
         {sortedCategories.map((cat) => (
           <SwipeToDelete key={cat.id} onDelete={() => { showUndo(`Deleted "${cat.name}" category`); setCategories((prev) => prev.filter((c) => c.id !== cat.id)); }}>
@@ -9145,6 +9344,7 @@ function BudgetPage({ categories, transactions, setCategories, setTransactions, 
           </SwipeToDelete>
         ))}
       </div>
+      )}
 
       {(modal === "addTx" || modal?.type === "addTx") && (
         <Overlay onClose={() => setModal(null)}>
