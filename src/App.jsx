@@ -325,7 +325,254 @@ const PLAYFUL_THEMES = {
   },
 };
 
-// ─── MODERN / MINIMAL ─────────────────────────────────────────────────────────
+// ─── SPORTS THEMES ───────────────────────────────────────────────────────────
+const SPORTS_THEMES = {
+  msu_bulldogs: {
+    label: "MSU Bulldogs", preview: ["#660000", "#ffffff", "#5d4c00"],
+    dark: {
+      "--bg": "#0d0000", "--card": "#1a0000", "--surface": "#140000", "--sidebar": "#110000",
+      "--border": "#66000050", "--border-hover": "#660000a0", "--border-subtle": "#66000028",
+      "--track": "#1e0000", "--nav-active": "#280000", "--nav-hover": "#200000",
+      "--text-primary": "#ffffff", "--text-secondary": "#e0c080", "--text-muted": "#a07040",
+      "--icon-bg": "#280000",
+      "--green": "#b8c000", "--green-bg": "#b8c00018",
+      "--amber": "#e0c060", "--amber-bg": "#e0c06018",
+      "--red": "#ff4040", "--red-bg": "#ff404018",
+      "--accent": "#660000",
+      "--shadow": "rgba(0,0,0,0.5)", "--shadow-heavy": "rgba(0,0,0,0.8)",
+    },
+    light: {
+      "--bg": "#fff8f8", "--card": "#ffffff", "--surface": "#fff0f0", "--sidebar": "#ffe8e8",
+      "--border": "#660000", "--border-hover": "#440000", "--border-subtle": "#ffcccc",
+      "--track": "#ffd8d8", "--nav-active": "#ffd0d0", "--nav-hover": "#ffe0e0",
+      "--text-primary": "#1a0000", "--text-secondary": "#660000", "--text-muted": "#994444",
+      "--icon-bg": "#ffd0d0",
+      "--green": "#4a7a00", "--green-bg": "#4a7a0018",
+      "--amber": "#8a6600", "--amber-bg": "#8a660018",
+      "--red": "#cc0000", "--red-bg": "#cc000018",
+      "--accent": "#660000",
+      "--shadow": "rgba(80,0,0,0.10)", "--shadow-heavy": "rgba(80,0,0,0.22)",
+    },
+  },
+  alabama: {
+    label: "Alabama Crimson Tide", preview: ["#9e1b32", "#ffffff", "#828a8f"],
+    dark: {
+      "--bg": "#0c0008", "--card": "#1a0010", "--surface": "#140008", "--sidebar": "#110008",
+      "--border": "#9e1b3240", "--border-hover": "#9e1b3280", "--border-subtle": "#9e1b3220",
+      "--track": "#1e0012", "--nav-active": "#260014", "--nav-hover": "#1e0010",
+      "--text-primary": "#ffffff", "--text-secondary": "#c8c8cc", "--text-muted": "#828a8f",
+      "--icon-bg": "#260014",
+      "--green": "#40c080", "--green-bg": "#40c08018",
+      "--amber": "#e8c060", "--amber-bg": "#e8c06018",
+      "--red": "#ff4060", "--red-bg": "#ff406018",
+      "--accent": "#9e1b32",
+      "--shadow": "rgba(0,0,0,0.5)", "--shadow-heavy": "rgba(0,0,0,0.8)",
+    },
+    light: {
+      "--bg": "#fdf8f9", "--card": "#ffffff", "--surface": "#f8f0f2", "--sidebar": "#f2e8ea",
+      "--border": "#9e1b32", "--border-hover": "#7a1225", "--border-subtle": "#f0c8d0",
+      "--track": "#f0c8d0", "--nav-active": "#ead0d8", "--nav-hover": "#f4dce0",
+      "--text-primary": "#1a0008", "--text-secondary": "#9e1b32", "--text-muted": "#828a8f",
+      "--icon-bg": "#ead0d8",
+      "--green": "#1a7a40", "--green-bg": "#1a7a4018",
+      "--amber": "#9a6a00", "--amber-bg": "#9a6a0018",
+      "--red": "#cc1020", "--red-bg": "#cc102018",
+      "--accent": "#9e1b32",
+      "--shadow": "rgba(100,10,30,0.10)", "--shadow-heavy": "rgba(100,10,30,0.22)",
+    },
+  },
+  lsu_tigers: {
+    label: "LSU Tigers", preview: ["#461d7c", "#fdd023", "#ffffff"],
+    dark: {
+      "--bg": "#080010", "--card": "#100020", "--surface": "#0c0018", "--sidebar": "#0a0014",
+      "--border": "#461d7c50", "--border-hover": "#461d7c90", "--border-subtle": "#461d7c28",
+      "--track": "#140028", "--nav-active": "#180030", "--nav-hover": "#140024",
+      "--text-primary": "#fdd023", "--text-secondary": "#e8c840", "--text-muted": "#9a8030",
+      "--icon-bg": "#180030",
+      "--green": "#40c080", "--green-bg": "#40c08018",
+      "--amber": "#fdd023", "--amber-bg": "#fdd02318",
+      "--red": "#ff4060", "--red-bg": "#ff406018",
+      "--accent": "#fdd023",
+      "--shadow": "rgba(0,0,0,0.5)", "--shadow-heavy": "rgba(0,0,0,0.8)",
+    },
+    light: {
+      "--bg": "#faf8ff", "--card": "#ffffff", "--surface": "#f4f0ff", "--sidebar": "#ede8ff",
+      "--border": "#461d7c", "--border-hover": "#341060", "--border-subtle": "#d0c0f0",
+      "--track": "#d8ccf4", "--nav-active": "#d4c8f0", "--nav-hover": "#e0d8f8",
+      "--text-primary": "#10002a", "--text-secondary": "#461d7c", "--text-muted": "#7050a0",
+      "--icon-bg": "#d4c8f0",
+      "--green": "#1a7a40", "--green-bg": "#1a7a4018",
+      "--amber": "#b08800", "--amber-bg": "#b0880018",
+      "--red": "#cc1020", "--red-bg": "#cc102018",
+      "--accent": "#461d7c",
+      "--shadow": "rgba(40,10,80,0.10)", "--shadow-heavy": "rgba(40,10,80,0.22)",
+    },
+  },
+  ole_miss: {
+    label: "Ole Miss Rebels", preview: ["#ce1126", "#14213d", "#ffffff"],
+    dark: {
+      "--bg": "#08080e", "--card": "#10101e", "--surface": "#0c0c18", "--sidebar": "#0a0a14",
+      "--border": "#ce112630", "--border-hover": "#ce112270", "--border-subtle": "#ce112218",
+      "--track": "#141428", "--nav-active": "#181830", "--nav-hover": "#141424",
+      "--text-primary": "#ffffff", "--text-secondary": "#c0c8e0", "--text-muted": "#6870a0",
+      "--icon-bg": "#181830",
+      "--green": "#40c080", "--green-bg": "#40c08018",
+      "--amber": "#e8c060", "--amber-bg": "#e8c06018",
+      "--red": "#ce1126", "--red-bg": "#ce112618",
+      "--accent": "#ce1126",
+      "--shadow": "rgba(0,0,0,0.5)", "--shadow-heavy": "rgba(0,0,0,0.8)",
+    },
+    light: {
+      "--bg": "#f8f9fc", "--card": "#ffffff", "--surface": "#f0f2f8", "--sidebar": "#e8eaf2",
+      "--border": "#14213d", "--border-hover": "#0a1428", "--border-subtle": "#c8cce0",
+      "--track": "#d4d8ec", "--nav-active": "#d0d4e8", "--nav-hover": "#dcdff0",
+      "--text-primary": "#0a0c1a", "--text-secondary": "#14213d", "--text-muted": "#505a80",
+      "--icon-bg": "#d0d4e8",
+      "--green": "#1a7a40", "--green-bg": "#1a7a4018",
+      "--amber": "#9a7000", "--amber-bg": "#9a700018",
+      "--red": "#ce1126", "--red-bg": "#ce112618",
+      "--accent": "#ce1126",
+      "--shadow": "rgba(10,15,40,0.10)", "--shadow-heavy": "rgba(10,15,40,0.22)",
+    },
+  },
+  southern_miss: {
+    label: "Southern Miss Eagles", preview: ["#f5c518", "#000000", "#fedb00"],
+    dark: {
+      "--bg": "#0a0a00", "--card": "#161600", "--surface": "#101000", "--sidebar": "#0e0e00",
+      "--border": "#f5c51840", "--border-hover": "#f5c51880", "--border-subtle": "#f5c51820",
+      "--track": "#1a1a00", "--nav-active": "#222200", "--nav-hover": "#1a1a00",
+      "--text-primary": "#f5c518", "--text-secondary": "#e0b010", "--text-muted": "#8a7010",
+      "--icon-bg": "#222200",
+      "--green": "#80c840", "--green-bg": "#80c84018",
+      "--amber": "#f5c518", "--amber-bg": "#f5c51818",
+      "--red": "#ff4040", "--red-bg": "#ff404018",
+      "--accent": "#f5c518",
+      "--shadow": "rgba(0,0,0,0.5)", "--shadow-heavy": "rgba(0,0,0,0.8)",
+    },
+    light: {
+      "--bg": "#fffde8", "--card": "#ffffff", "--surface": "#fffbe0", "--sidebar": "#fff8d0",
+      "--border": "#222200", "--border-hover": "#111100", "--border-subtle": "#e8e0a0",
+      "--track": "#e8e090", "--nav-active": "#f0e888", "--nav-hover": "#f8f0a0",
+      "--text-primary": "#111100", "--text-secondary": "#333300", "--text-muted": "#666630",
+      "--icon-bg": "#f0e888",
+      "--green": "#2a6a00", "--green-bg": "#2a6a0018",
+      "--amber": "#9a7800", "--amber-bg": "#9a780018",
+      "--red": "#cc2200", "--red-bg": "#cc220018",
+      "--accent": "#c8a000",
+      "--shadow": "rgba(40,40,0,0.10)", "--shadow-heavy": "rgba(40,40,0,0.22)",
+    },
+  },
+  dallas_cowboys: {
+    label: "Dallas Cowboys", preview: ["#003594", "#869397", "#ffffff"],
+    dark: {
+      "--bg": "#060a14", "--card": "#0c1428", "--surface": "#08101e", "--sidebar": "#060e1a",
+      "--border": "#00359440", "--border-hover": "#00359480", "--border-subtle": "#00359420",
+      "--track": "#0e1a34", "--nav-active": "#10203e", "--nav-hover": "#0c1a34",
+      "--text-primary": "#ffffff", "--text-secondary": "#a8b8cc", "--text-muted": "#607080",
+      "--icon-bg": "#10203e",
+      "--green": "#40c080", "--green-bg": "#40c08018",
+      "--amber": "#c8a840", "--amber-bg": "#c8a84018",
+      "--red": "#e04040", "--red-bg": "#e0404018",
+      "--accent": "#4a7fd4",
+      "--shadow": "rgba(0,0,0,0.5)", "--shadow-heavy": "rgba(0,0,0,0.8)",
+    },
+    light: {
+      "--bg": "#f0f4ff", "--card": "#ffffff", "--surface": "#e8f0fc", "--sidebar": "#dce8f8",
+      "--border": "#003594", "--border-hover": "#002270", "--border-subtle": "#b8cce8",
+      "--track": "#c8d8f0", "--nav-active": "#c0d0ec", "--nav-hover": "#d0dcf4",
+      "--text-primary": "#020a20", "--text-secondary": "#003594", "--text-muted": "#5070a0",
+      "--icon-bg": "#c0d0ec",
+      "--green": "#1a7a40", "--green-bg": "#1a7a4018",
+      "--amber": "#9a7000", "--amber-bg": "#9a700018",
+      "--red": "#cc1020", "--red-bg": "#cc102018",
+      "--accent": "#003594",
+      "--shadow": "rgba(0,30,100,0.10)", "--shadow-heavy": "rgba(0,30,100,0.22)",
+    },
+  },
+  saints: {
+    label: "New Orleans Saints", preview: ["#d3bc8d", "#101820", "#ffffff"],
+    dark: {
+      "--bg": "#080808", "--card": "#111008", "--surface": "#0c0c06", "--sidebar": "#0a0a06",
+      "--border": "#d3bc8d40", "--border-hover": "#d3bc8d80", "--border-subtle": "#d3bc8d20",
+      "--track": "#181408", "--nav-active": "#201c0c", "--nav-hover": "#181408",
+      "--text-primary": "#d3bc8d", "--text-secondary": "#c0a870", "--text-muted": "#806840",
+      "--icon-bg": "#201c0c",
+      "--green": "#60c060", "--green-bg": "#60c06018",
+      "--amber": "#d3bc8d", "--amber-bg": "#d3bc8d18",
+      "--red": "#e04040", "--red-bg": "#e0404018",
+      "--accent": "#d3bc8d",
+      "--shadow": "rgba(0,0,0,0.6)", "--shadow-heavy": "rgba(0,0,0,0.85)",
+    },
+    light: {
+      "--bg": "#faf8f0", "--card": "#ffffff", "--surface": "#f4f0e4", "--sidebar": "#ece8d8",
+      "--border": "#101820", "--border-hover": "#080e14", "--border-subtle": "#c8c0a0",
+      "--track": "#dcd4b0", "--nav-active": "#e4dcc0", "--nav-hover": "#eee8d4",
+      "--text-primary": "#080808", "--text-secondary": "#101820", "--text-muted": "#706040",
+      "--icon-bg": "#e4dcc0",
+      "--green": "#1a6a20", "--green-bg": "#1a6a2018",
+      "--amber": "#806000", "--amber-bg": "#80600018",
+      "--red": "#aa1010", "--red-bg": "#aa101018",
+      "--accent": "#9a8050",
+      "--shadow": "rgba(10,10,10,0.10)", "--shadow-heavy": "rgba(10,10,10,0.25)",
+    },
+  },
+  broncos: {
+    label: "Denver Broncos", preview: ["#fb4f14", "#002244", "#ffffff"],
+    dark: {
+      "--bg": "#060810", "--card": "#0c1020", "--surface": "#080c18", "--sidebar": "#060a14",
+      "--border": "#fb4f1440", "--border-hover": "#fb4f1480", "--border-subtle": "#fb4f1420",
+      "--track": "#0e1428", "--nav-active": "#121830", "--nav-hover": "#0e1428",
+      "--text-primary": "#ffffff", "--text-secondary": "#fb4f14", "--text-muted": "#9060408",
+      "--icon-bg": "#121830",
+      "--green": "#40c080", "--green-bg": "#40c08018",
+      "--amber": "#fb4f14", "--amber-bg": "#fb4f1418",
+      "--red": "#fb4f14", "--red-bg": "#fb4f1418",
+      "--accent": "#fb4f14",
+      "--shadow": "rgba(0,0,0,0.5)", "--shadow-heavy": "rgba(0,0,0,0.8)",
+    },
+    light: {
+      "--bg": "#f8f9ff", "--card": "#ffffff", "--surface": "#f0f2fc", "--sidebar": "#e4e8f8",
+      "--border": "#002244", "--border-hover": "#001430", "--border-subtle": "#b8c4e0",
+      "--track": "#c8d0ec", "--nav-active": "#c0cce8", "--nav-hover": "#ccd4f0",
+      "--text-primary": "#020614", "--text-secondary": "#002244", "--text-muted": "#4060a0",
+      "--icon-bg": "#c0cce8",
+      "--green": "#1a7a40", "--green-bg": "#1a7a4018",
+      "--amber": "#c04000", "--amber-bg": "#c0400018",
+      "--red": "#fb4f14", "--red-bg": "#fb4f1418",
+      "--accent": "#fb4f14",
+      "--shadow": "rgba(0,20,60,0.10)", "--shadow-heavy": "rgba(0,20,60,0.22)",
+    },
+  },
+  miami_hurricanes: {
+    label: "Miami Hurricanes", preview: ["#f47321", "#005030", "#ffffff"],
+    dark: {
+      "--bg": "#040e08", "--card": "#081a10", "--surface": "#061408", "--sidebar": "#051008",
+      "--border": "#f4732140", "--border-hover": "#f4732180", "--border-subtle": "#f4732120",
+      "--track": "#0a1a0c", "--nav-active": "#0e2214", "--nav-hover": "#0a1a0e",
+      "--text-primary": "#ffffff", "--text-secondary": "#f47321", "--text-muted": "#80601040",
+      "--icon-bg": "#0e2214",
+      "--green": "#00a060", "--green-bg": "#00a06018",
+      "--amber": "#f47321", "--amber-bg": "#f4732118",
+      "--red": "#f47321", "--red-bg": "#f4732118",
+      "--accent": "#f47321",
+      "--shadow": "rgba(0,0,0,0.5)", "--shadow-heavy": "rgba(0,0,0,0.8)",
+    },
+    light: {
+      "--bg": "#f4fff8", "--card": "#ffffff", "--surface": "#edfff4", "--sidebar": "#e0f8ea",
+      "--border": "#005030", "--border-hover": "#003820", "--border-subtle": "#a0d8b8",
+      "--track": "#b8e8cc", "--nav-active": "#b0e0c4", "--nav-hover": "#c4ecd4",
+      "--text-primary": "#021408", "--text-secondary": "#005030", "--text-muted": "#306848",
+      "--icon-bg": "#b0e0c4",
+      "--green": "#005030", "--green-bg": "#00503018",
+      "--amber": "#c05800", "--amber-bg": "#c0580018",
+      "--red": "#f47321", "--red-bg": "#f4732118",
+      "--accent": "#f47321",
+      "--shadow": "rgba(0,50,20,0.10)", "--shadow-heavy": "rgba(0,50,20,0.22)",
+    },
+  },
+};
+
+
 const MINIMAL_THEMES = {
   swiss: {
     label: "Swiss Modernist", preview: ["#e63312", "#111111", "#ffffff"],
@@ -631,6 +878,95 @@ const COLOR_THEMES = {
   ...CULTURAL_THEMES,
   ...PLAYFUL_THEMES,
   ...MINIMAL_THEMES,
+  ...SPORTS_THEMES,
+  vault_tec: {
+    label: "Vault-Tec", preview: ["#2d5fa6", "#c9961a", "#0a1c3a"],
+    dark: {
+      // Dark: near-black backdrop, cobalt blue cards, gold text — poster in the dark
+      "--bg": "#07111e", "--card": "#1a3a6e", "--surface": "#142e5a", "--sidebar": "#0f2650",
+      "--border": "#c9961a50", "--border-hover": "#c9961a90", "--border-subtle": "#c9961a28",
+      "--track": "#0f2040", "--nav-active": "#1e4080", "--nav-hover": "#183468",
+      "--text-primary": "#f0d878", "--text-secondary": "#c9961a", "--text-muted": "#8a7030",
+      "--icon-bg": "#1e4080",
+      "--green": "#70c870", "--green-bg": "#70c87018",
+      "--amber": "#f0d050", "--amber-bg": "#f0d05018",
+      "--red": "#e04030", "--red-bg": "#e0403018",
+      "--accent": "#c9961a",
+      "--shadow": "rgba(0,0,0,0.55)", "--shadow-heavy": "rgba(0,0,0,0.85)",
+    },
+    light: {
+      // Light: cobalt blue everywhere, gold accents — the actual poster colors
+      "--bg": "#2d5fa6", "--card": "#1e4d8c", "--surface": "#245294", "--sidebar": "#1a4480",
+      "--border": "#c9961a80", "--border-hover": "#c9961a", "--border-subtle": "#c9961a30",
+      "--track": "#163870", "--nav-active": "#2a5ea8", "--nav-hover": "#224e98",
+      "--text-primary": "#f5e090", "--text-secondary": "#c9961a", "--text-muted": "#7a8aaa",
+      "--icon-bg": "#2a5ea8",
+      "--green": "#70d870", "--green-bg": "#70d87018",
+      "--amber": "#f0c830", "--amber-bg": "#f0c83018",
+      "--red": "#e85040", "--red-bg": "#e8504018",
+      "--accent": "#c9961a",
+      "--shadow": "rgba(0,15,50,0.35)", "--shadow-heavy": "rgba(0,15,50,0.65)",
+    },
+  },
+  batman: {
+    label: "Batman", preview: ["#f5c400", "#0a0a0a", "#2a2a2a"],
+    dark: {
+      // Pure Gotham night — obsidian black, signal yellow, gunmetal
+      "--bg": "#050505", "--card": "#0f0f0f", "--surface": "#080808", "--sidebar": "#0a0a0a",
+      "--border": "#f5c40030", "--border-hover": "#f5c40070", "--border-subtle": "#f5c40016",
+      "--track": "#141414", "--nav-active": "#1a1a00", "--nav-hover": "#141400",
+      "--text-primary": "#f5f5f5", "--text-secondary": "#f5c400", "--text-muted": "#5a5a5a",
+      "--icon-bg": "#1a1a00",
+      "--green": "#60cc60", "--green-bg": "#60cc6018",
+      "--amber": "#f5c400", "--amber-bg": "#f5c40018",
+      "--red": "#e03030", "--red-bg": "#e0303018",
+      "--accent": "#f5c400",
+      "--shadow": "rgba(0,0,0,0.8)", "--shadow-heavy": "rgba(0,0,0,0.95)",
+    },
+    light: {
+      // Gotham by day — deep graphite, chrome yellow pops, stark contrast
+      "--bg": "#1a1a1a", "--card": "#242424", "--surface": "#1e1e1e", "--sidebar": "#161616",
+      "--border": "#f5c40040", "--border-hover": "#f5c40090", "--border-subtle": "#f5c40020",
+      "--track": "#2e2e2e", "--nav-active": "#2a2800", "--nav-hover": "#222200",
+      "--text-primary": "#f0f0f0", "--text-secondary": "#f5c400", "--text-muted": "#707070",
+      "--icon-bg": "#2a2800",
+      "--green": "#70d070", "--green-bg": "#70d07018",
+      "--amber": "#f5c400", "--amber-bg": "#f5c40018",
+      "--red": "#e84040", "--red-bg": "#e8404018",
+      "--accent": "#f5c400",
+      "--shadow": "rgba(0,0,0,0.6)", "--shadow-heavy": "rgba(0,0,0,0.85)",
+    },
+  },
+  pipboy: {
+    label: "Pip-Boy", preview: ["#4afa4a", "#0a120a", "#1a2e1a"],
+    dark: {
+      // Single-phosphor green CRT — everything is one color family
+      "--bg": "#080e08", "--card": "#0d160d", "--surface": "#0a120a", "--sidebar": "#090e09",
+      "--border": "#4afa4a28", "--border-hover": "#4afa4a60", "--border-subtle": "#4afa4a14",
+      "--track": "#0f1a0f", "--nav-active": "#122012", "--nav-hover": "#0f1a0f",
+      "--text-primary": "#4afa4a", "--text-secondary": "#30cc30", "--text-muted": "#1a6a1a",
+      "--icon-bg": "#122012",
+      // All status colors are green variants — faithful to single-phosphor display
+      "--green": "#4afa4a", "--green-bg": "#4afa4a18",
+      "--amber": "#80ff60", "--amber-bg": "#80ff6018",
+      "--red": "#28c828", "--red-bg": "#28c82818",
+      "--accent": "#4afa4a",
+      "--shadow": "rgba(0,0,0,0.7)", "--shadow-heavy": "rgba(0,0,0,0.92)",
+    },
+    light: {
+      // Slightly brighter phosphor — daytime vault lighting
+      "--bg": "#0c1a0c", "--card": "#112011", "--surface": "#0e1a0e", "--sidebar": "#0c180c",
+      "--border": "#4afa4a35", "--border-hover": "#4afa4a70", "--border-subtle": "#4afa4a1a",
+      "--track": "#142414", "--nav-active": "#182e18", "--nav-hover": "#152618",
+      "--text-primary": "#60ff60", "--text-secondary": "#40e040", "--text-muted": "#228822",
+      "--icon-bg": "#182e18",
+      "--green": "#60ff60", "--green-bg": "#60ff6018",
+      "--amber": "#90ff70", "--amber-bg": "#90ff7018",
+      "--red": "#38e038", "--red-bg": "#38e03818",
+      "--accent": "#60ff60",
+      "--shadow": "rgba(0,0,0,0.6)", "--shadow-heavy": "rgba(0,0,0,0.88)",
+    },
+  },
 };
 const DASHBOARD_WIDGETS = [
   { id: "today", label: "Today's Snapshot" },
@@ -2116,6 +2452,615 @@ function ThemeStyles() {
         font-family: 'Patrick Hand', cursive !important;
         letter-spacing: 0.03em !important;
         border-radius: 4px !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════
+         BATMAN THEME
+         Gotham's finest. Black obsidian + signal yellow.
+         Dark mode: pure pitch-black city night, yellow cuts
+         Light mode: gunmetal graphite, yellow pops like the
+         Bat-Signal punching through cloud cover.
+         Frank Miller ink meets Nolan brutalism.
+      ═══════════════════════════════════════════════════════ */
+      @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800&display=swap');
+
+      [data-color-theme="batman"] {
+        font-family: 'Barlow', sans-serif !important;
+        font-weight: 500 !important;
+      }
+
+      [data-color-theme="batman"] h1,
+      [data-color-theme="batman"] h2,
+      [data-color-theme="batman"] h3 {
+        font-family: 'Bebas Neue', sans-serif !important;
+        letter-spacing: 0.12em !important;
+        font-weight: 400 !important;
+        color: #f5c400 !important;
+        text-shadow: 0 0 20px rgba(245,196,0,0.3) !important;
+      }
+
+      [data-color-theme="batman"] button {
+        font-family: 'Barlow Condensed', sans-serif !important;
+        font-weight: 700 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.1em !important;
+        border-radius: 2px !important;
+      }
+
+      /* ── DARK: pure Gotham night ── */
+      [data-color-theme="batman"][data-mode="dark"] .maverick-card {
+        border-radius: 3px !important;
+        border: 1px solid #f5c40022 !important;
+        background: #0f0f0f !important;
+        box-shadow:
+          inset 0 1px 0 rgba(245,196,0,0.06),
+          inset 0 -1px 0 rgba(0,0,0,0.5),
+          0 0 0 1px rgba(0,0,0,0.8),
+          0 4px 24px rgba(0,0,0,0.9),
+          0 1px 3px rgba(0,0,0,0.6) !important;
+        overflow: visible !important;
+        position: relative !important;
+      }
+
+      /* Yellow signal stripe on left edge */
+      [data-color-theme="batman"][data-mode="dark"] .maverick-card::before {
+        content: '';
+        position: absolute;
+        top: 15%; bottom: 15%; left: -1px;
+        width: 2px;
+        background: linear-gradient(180deg, transparent, #f5c400, transparent);
+        pointer-events: none;
+        z-index: 1;
+      }
+
+      /* Bat-Signal radial glow in page center */
+      [data-color-theme="batman"][data-mode="dark"] .maverick-main {
+        background:
+          radial-gradient(ellipse at 50% 30%, rgba(245,196,0,0.04) 0%, transparent 55%),
+          #050505 !important;
+      }
+
+      /* Sidebar: absolute black, yellow nav indicators */
+      [data-color-theme="batman"][data-mode="dark"] .maverick-sidebar {
+        background: #0a0a0a !important;
+        border-right: 1px solid #f5c40020 !important;
+        box-shadow: inset -1px 0 0 #f5c40010 !important;
+      }
+
+      [data-color-theme="batman"][data-mode="dark"] input,
+      [data-color-theme="batman"][data-mode="dark"] select,
+      [data-color-theme="batman"][data-mode="dark"] textarea {
+        background: #080808 !important;
+        border-color: #f5c40030 !important;
+        color: #f0f0f0 !important;
+        font-family: 'Barlow', sans-serif !important;
+      }
+
+      [data-color-theme="batman"][data-mode="dark"] input:focus,
+      [data-color-theme="batman"][data-mode="dark"] select:focus,
+      [data-color-theme="batman"][data-mode="dark"] textarea:focus {
+        border-color: #f5c40080 !important;
+        box-shadow: 0 0 0 2px rgba(245,196,0,0.12) !important;
+        outline: none !important;
+      }
+
+      /* ── LIGHT: gunmetal Gotham, yellow blazing ── */
+      [data-color-theme="batman"][data-mode="light"] .maverick-card {
+        border-radius: 3px !important;
+        border: 1px solid #f5c40030 !important;
+        background: #242424 !important;
+        box-shadow:
+          inset 0 1px 0 rgba(245,196,0,0.08),
+          inset 0 -1px 0 rgba(0,0,0,0.4),
+          0 0 0 1px rgba(0,0,0,0.5),
+          0 4px 20px rgba(0,0,0,0.7),
+          0 1px 3px rgba(0,0,0,0.4) !important;
+        overflow: visible !important;
+        position: relative !important;
+      }
+
+      [data-color-theme="batman"][data-mode="light"] .maverick-card::before {
+        content: '';
+        position: absolute;
+        top: 15%; bottom: 15%; left: -1px;
+        width: 2px;
+        background: linear-gradient(180deg, transparent, #f5c400cc, transparent);
+        pointer-events: none;
+        z-index: 1;
+      }
+
+      [data-color-theme="batman"][data-mode="light"] .maverick-main {
+        background:
+          radial-gradient(ellipse at 50% 20%, rgba(245,196,0,0.05) 0%, transparent 50%),
+          #1a1a1a !important;
+      }
+
+      [data-color-theme="batman"][data-mode="light"] .maverick-sidebar {
+        background: linear-gradient(180deg, #141414 0%, #111111 100%) !important;
+        border-right: 1px solid #f5c40025 !important;
+      }
+
+      [data-color-theme="batman"][data-mode="light"] input,
+      [data-color-theme="batman"][data-mode="light"] select,
+      [data-color-theme="batman"][data-mode="light"] textarea {
+        background: #1a1a1a !important;
+        border-color: #f5c40040 !important;
+        color: #f0f0f0 !important;
+        font-family: 'Barlow', sans-serif !important;
+      }
+
+      [data-color-theme="batman"][data-mode="light"] input:focus,
+      [data-color-theme="batman"][data-mode="light"] select:focus,
+      [data-color-theme="batman"][data-mode="light"] textarea:focus {
+        border-color: #f5c400 !important;
+        box-shadow: 0 0 0 2px rgba(245,196,0,0.15) !important;
+        outline: none !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════
+         PIP-BOY THEME
+         Single-phosphor green CRT display.
+         You are looking at your budget through a Pip-Boy 3000.
+         One color family — phosphor green at every brightness.
+         Scanlines, screen glow, monospace terminal font,
+         CRT vignette, dashed UI borders.
+      ═══════════════════════════════════════════════════════ */
+      @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Share+Tech&display=swap');
+
+      [data-color-theme="pipboy"] {
+        font-family: 'Share Tech Mono', monospace !important;
+        letter-spacing: 0.04em !important;
+        /* CRT green text glow on everything */
+        text-shadow: 0 0 6px rgba(74,250,74,0.35) !important;
+      }
+
+      [data-color-theme="pipboy"] h1,
+      [data-color-theme="pipboy"] h2,
+      [data-color-theme="pipboy"] h3 {
+        font-family: 'Share Tech', sans-serif !important;
+        letter-spacing: 0.14em !important;
+        text-transform: uppercase !important;
+        font-weight: 400 !important;
+        text-shadow: 0 0 12px rgba(74,250,74,0.6), 0 0 24px rgba(74,250,74,0.2) !important;
+      }
+
+      [data-color-theme="pipboy"] button {
+        font-family: 'Share Tech Mono', monospace !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.1em !important;
+        border-radius: 1px !important;
+        text-shadow: 0 0 8px rgba(74,250,74,0.5) !important;
+      }
+
+      /* ── Cards: Pip-Boy UI panel with scanlines ── */
+      [data-color-theme="pipboy"] .maverick-card {
+        border-radius: 1px !important;
+        border: 1px solid rgba(74,250,74,0.25) !important;
+        /* Scanline texture baked in */
+        background:
+          repeating-linear-gradient(
+            0deg,
+            rgba(0,0,0,0.18) 0px,
+            rgba(0,0,0,0.18) 1px,
+            transparent 1px,
+            transparent 3px
+          ),
+          var(--card) !important;
+        box-shadow:
+          inset 0 0 20px rgba(74,250,74,0.04),
+          inset 0 1px 0 rgba(74,250,74,0.1),
+          0 0 12px rgba(74,250,74,0.08),
+          0 2px 8px rgba(0,0,0,0.8) !important;
+        overflow: visible !important;
+        position: relative !important;
+      }
+
+      /* Dashed corner brackets — Pip-Boy UI chrome */
+      [data-color-theme="pipboy"] .maverick-card::before {
+        content: '';
+        position: absolute;
+        inset: -3px;
+        border: 1px dashed rgba(74,250,74,0.18);
+        border-radius: 2px;
+        pointer-events: none;
+        z-index: 1;
+      }
+
+      /* Full-screen CRT effect — scanlines + phosphor glow + vignette */
+      [data-color-theme="pipboy"] .maverick-main {
+        background:
+          /* Vignette */
+          radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(0,0,0,0.55) 100%),
+          /* Phosphor bloom */
+          radial-gradient(ellipse at 50% 40%, rgba(74,250,74,0.04) 0%, transparent 60%),
+          /* Scanlines */
+          repeating-linear-gradient(
+            0deg,
+            rgba(0,0,0,0.15) 0px,
+            rgba(0,0,0,0.15) 1px,
+            transparent 1px,
+            transparent 4px
+          ),
+          var(--bg) !important;
+      }
+
+      /* Sidebar: narrower CRT bezel */
+      [data-color-theme="pipboy"] .maverick-sidebar {
+        background:
+          repeating-linear-gradient(
+            0deg,
+            rgba(0,0,0,0.12) 0px,
+            rgba(0,0,0,0.12) 1px,
+            transparent 1px,
+            transparent 3px
+          ),
+          var(--sidebar) !important;
+        border-right: 1px solid rgba(74,250,74,0.2) !important;
+        box-shadow: inset -2px 0 8px rgba(0,0,0,0.6) !important;
+      }
+
+      /* Inputs: terminal entry fields */
+      [data-color-theme="pipboy"] input,
+      [data-color-theme="pipboy"] select,
+      [data-color-theme="pipboy"] textarea {
+        font-family: 'Share Tech Mono', monospace !important;
+        background: rgba(10,18,10,0.95) !important;
+        border-color: rgba(74,250,74,0.35) !important;
+        color: #4afa4a !important;
+        caret-color: #4afa4a !important;
+        letter-spacing: 0.06em !important;
+        text-shadow: 0 0 6px rgba(74,250,74,0.4) !important;
+      }
+
+      [data-color-theme="pipboy"] input:focus,
+      [data-color-theme="pipboy"] select:focus,
+      [data-color-theme="pipboy"] textarea:focus {
+        border-color: rgba(74,250,74,0.7) !important;
+        box-shadow: 0 0 0 2px rgba(74,250,74,0.12), 0 0 8px rgba(74,250,74,0.15) !important;
+        outline: none !important;
+      }
+
+      /* Override all borders to use phosphor green */
+      [data-color-theme="pipboy"] * {
+        border-color: rgba(74,250,74,0.22) !important;
+      }
+
+      /* Progress bars and track elements get phosphor glow */
+      [data-color-theme="pipboy"] div[style*="background: var(--accent)"],
+      [data-color-theme="pipboy"] div[style*="background:var(--accent)"] {
+        box-shadow: 0 0 6px rgba(74,250,74,0.6) !important;
+      }
+      @import url('https://fonts.googleapis.com/css2?family=Russo+One&family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500;600&display=swap');
+
+      [data-color-theme="vault_tec"] {
+        font-family: 'Barlow', sans-serif !important;
+        font-weight: 500 !important;
+        letter-spacing: 0.02em !important;
+      }
+
+      [data-color-theme="vault_tec"] h1,
+      [data-color-theme="vault_tec"] h2,
+      [data-color-theme="vault_tec"] h3 {
+        font-family: 'Russo One', sans-serif !important;
+        letter-spacing: 0.08em !important;
+        text-transform: uppercase !important;
+        font-weight: 400 !important;
+        color: #c9961a !important;
+      }
+
+      [data-color-theme="vault_tec"] button {
+        font-family: 'Barlow Condensed', sans-serif !important;
+        font-weight: 700 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.1em !important;
+        border-radius: 3px !important;
+      }
+
+      /* ── DARK: near-black stage, cobalt blue card panels, gold text ── */
+      [data-color-theme="vault_tec"][data-mode="dark"] .maverick-card {
+        border-radius: 6px !important;
+        border: 1px solid #c9961a40 !important;
+        background: linear-gradient(160deg, #1e4278 0%, #193870 50%, #1c3e76 100%) !important;
+        box-shadow:
+          inset 0 1px 0 rgba(201,150,26,0.15),
+          inset 0 -1px 0 rgba(0,0,0,0.3),
+          0 0 0 1px rgba(201,150,26,0.08),
+          0 4px 20px rgba(0,0,0,0.6),
+          0 1px 4px rgba(0,0,0,0.4) !important;
+        overflow: visible !important;
+        position: relative !important;
+      }
+
+      /* Gold border shimmer on top edge */
+      [data-color-theme="vault_tec"][data-mode="dark"] .maverick-card::before {
+        content: '';
+        position: absolute;
+        top: -1px; left: 10%; right: 10%;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, #c9961a80, transparent);
+        pointer-events: none;
+        z-index: 1;
+      }
+
+      [data-color-theme="vault_tec"][data-mode="dark"] .maverick-main {
+        background:
+          radial-gradient(ellipse at 50% 20%, rgba(45,95,166,0.12) 0%, transparent 60%),
+          #07111e !important;
+      }
+
+      [data-color-theme="vault_tec"][data-mode="dark"] .maverick-sidebar {
+        background: linear-gradient(180deg, #0f2650 0%, #0c2044 100%) !important;
+        border-right: 1px solid #c9961a30 !important;
+        box-shadow: inset -1px 0 0 #c9961a18 !important;
+      }
+
+      [data-color-theme="vault_tec"][data-mode="dark"] input,
+      [data-color-theme="vault_tec"][data-mode="dark"] select,
+      [data-color-theme="vault_tec"][data-mode="dark"] textarea {
+        background: rgba(10,28,60,0.8) !important;
+        border-color: #c9961a50 !important;
+        color: #f0d878 !important;
+        font-family: 'Barlow', sans-serif !important;
+      }
+
+      /* ── LIGHT: full cobalt blue — you ARE inside the poster ── */
+      [data-color-theme="vault_tec"][data-mode="light"] .maverick-card {
+        border-radius: 6px !important;
+        border: 1px solid #c9961a60 !important;
+        background: linear-gradient(160deg, #1e4d8c 0%, #1a4480 50%, #1c4888 100%) !important;
+        box-shadow:
+          inset 0 1px 0 rgba(201,150,26,0.2),
+          inset 0 -1px 0 rgba(0,0,0,0.25),
+          0 0 0 1px rgba(201,150,26,0.12),
+          0 4px 16px rgba(0,15,50,0.4) !important;
+        overflow: visible !important;
+        position: relative !important;
+      }
+
+      [data-color-theme="vault_tec"][data-mode="light"] .maverick-card::before {
+        content: '';
+        position: absolute;
+        top: -1px; left: 8%; right: 8%;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, #c9961aaa, transparent);
+        pointer-events: none;
+        z-index: 1;
+      }
+
+      [data-color-theme="vault_tec"][data-mode="light"] .maverick-main {
+        background:
+          radial-gradient(ellipse at 50% 0%, rgba(201,150,26,0.08) 0%, transparent 50%),
+          #2d5fa6 !important;
+      }
+
+      [data-color-theme="vault_tec"][data-mode="light"] .maverick-sidebar {
+        background: linear-gradient(180deg, #163878 0%, #122e68 100%) !important;
+        border-right: 1px solid #c9961a40 !important;
+      }
+
+      [data-color-theme="vault_tec"][data-mode="light"] .maverick-sidebar * {
+        color: #f0d878 !important;
+      }
+
+      [data-color-theme="vault_tec"][data-mode="light"] input,
+      [data-color-theme="vault_tec"][data-mode="light"] select,
+      [data-color-theme="vault_tec"][data-mode="light"] textarea {
+        background: rgba(10,28,70,0.6) !important;
+        border-color: #c9961a60 !important;
+        color: #f5e898 !important;
+        font-family: 'Barlow', sans-serif !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════
+         SPORTS THEMES — shared font import
+      ═══════════════════════════════════════════════════════ */
+      @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,700;1,800&family=Barlow:wght@400;500;600&display=swap');
+
+      /* All sports themes use Barlow Condensed for headings — stadium scoreboard feel */
+      [data-color-theme="msu_bulldogs"] h1, [data-color-theme="msu_bulldogs"] h2, [data-color-theme="msu_bulldogs"] h3,
+      [data-color-theme="alabama"] h1, [data-color-theme="alabama"] h2, [data-color-theme="alabama"] h3,
+      [data-color-theme="lsu_tigers"] h1, [data-color-theme="lsu_tigers"] h2, [data-color-theme="lsu_tigers"] h3,
+      [data-color-theme="ole_miss"] h1, [data-color-theme="ole_miss"] h2, [data-color-theme="ole_miss"] h3,
+      [data-color-theme="southern_miss"] h1, [data-color-theme="southern_miss"] h2, [data-color-theme="southern_miss"] h3,
+      [data-color-theme="dallas_cowboys"] h1, [data-color-theme="dallas_cowboys"] h2, [data-color-theme="dallas_cowboys"] h3,
+      [data-color-theme="saints"] h1, [data-color-theme="saints"] h2, [data-color-theme="saints"] h3,
+      [data-color-theme="broncos"] h1, [data-color-theme="broncos"] h2, [data-color-theme="broncos"] h3,
+      [data-color-theme="miami_hurricanes"] h1, [data-color-theme="miami_hurricanes"] h2, [data-color-theme="miami_hurricanes"] h3 {
+        font-family: 'Barlow Condensed', sans-serif !important;
+        font-weight: 800 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.04em !important;
+        font-style: italic !important;
+      }
+
+      [data-color-theme="msu_bulldogs"],
+      [data-color-theme="alabama"],
+      [data-color-theme="lsu_tigers"],
+      [data-color-theme="ole_miss"],
+      [data-color-theme="southern_miss"],
+      [data-color-theme="dallas_cowboys"],
+      [data-color-theme="saints"],
+      [data-color-theme="broncos"],
+      [data-color-theme="miami_hurricanes"] {
+        font-family: 'Barlow', sans-serif !important;
+      }
+
+      /* Shared sports card: bold left accent stripe + tight radius */
+      [data-color-theme="msu_bulldogs"] .maverick-card,
+      [data-color-theme="alabama"] .maverick-card,
+      [data-color-theme="lsu_tigers"] .maverick-card,
+      [data-color-theme="ole_miss"] .maverick-card,
+      [data-color-theme="southern_miss"] .maverick-card,
+      [data-color-theme="dallas_cowboys"] .maverick-card,
+      [data-color-theme="saints"] .maverick-card,
+      [data-color-theme="broncos"] .maverick-card,
+      [data-color-theme="miami_hurricanes"] .maverick-card {
+        border-radius: 4px !important;
+        border-left-width: 4px !important;
+        border-left-style: solid !important;
+      }
+
+      /* Shared sports buttons */
+      [data-color-theme="msu_bulldogs"] button,
+      [data-color-theme="alabama"] button,
+      [data-color-theme="lsu_tigers"] button,
+      [data-color-theme="ole_miss"] button,
+      [data-color-theme="southern_miss"] button,
+      [data-color-theme="dallas_cowboys"] button,
+      [data-color-theme="saints"] button,
+      [data-color-theme="broncos"] button,
+      [data-color-theme="miami_hurricanes"] button {
+        font-family: 'Barlow Condensed', sans-serif !important;
+        font-weight: 700 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.06em !important;
+        border-radius: 3px !important;
+      }
+
+      /* ── MSU Bulldogs: maroon & white, cowbell energy ── */
+      [data-color-theme="msu_bulldogs"][data-mode="dark"] .maverick-card {
+        border-left-color: #660000 !important;
+        box-shadow: -2px 0 12px rgba(102,0,0,0.4), 2px 4px 12px rgba(0,0,0,0.5) !important;
+        background: linear-gradient(135deg, #1e0000 0%, #180000 100%) !important;
+      }
+      [data-color-theme="msu_bulldogs"][data-mode="light"] .maverick-card {
+        border-left-color: #660000 !important;
+        box-shadow: -2px 0 8px rgba(102,0,0,0.2), 2px 3px 8px rgba(80,0,0,0.10) !important;
+      }
+      [data-color-theme="msu_bulldogs"] .maverick-main {
+        background: repeating-linear-gradient(
+          90deg, transparent 0px, transparent 39px, rgba(102,0,0,0.06) 39px, rgba(102,0,0,0.06) 40px
+        ), var(--bg) !important;
+      }
+
+      /* ── Alabama: crimson & gray, championship feel ── */
+      [data-color-theme="alabama"][data-mode="dark"] .maverick-card {
+        border-left-color: #9e1b32 !important;
+        box-shadow: -2px 0 14px rgba(158,27,50,0.4), 2px 4px 12px rgba(0,0,0,0.5) !important;
+        background: linear-gradient(135deg, #1a0010 0%, #160008 100%) !important;
+      }
+      [data-color-theme="alabama"][data-mode="light"] .maverick-card {
+        border-left-color: #9e1b32 !important;
+        box-shadow: -2px 0 8px rgba(158,27,50,0.25), 2px 3px 8px rgba(100,10,30,0.10) !important;
+      }
+      [data-color-theme="alabama"][data-mode="dark"] .maverick-main {
+        background: radial-gradient(ellipse at 50% 0%, rgba(158,27,50,0.12) 0%, transparent 60%), #0c0008 !important;
+      }
+
+      /* ── LSU Tigers: purple & gold, death valley thunder ── */
+      [data-color-theme="lsu_tigers"][data-mode="dark"] .maverick-card {
+        border-left-color: #fdd023 !important;
+        box-shadow: -2px 0 14px rgba(253,208,35,0.25), 2px 4px 12px rgba(0,0,0,0.5) !important;
+        background: linear-gradient(135deg, #120028 0%, #0e0020 100%) !important;
+      }
+      [data-color-theme="lsu_tigers"][data-mode="light"] .maverick-card {
+        border-left-color: #461d7c !important;
+        box-shadow: -2px 0 8px rgba(70,29,124,0.25), 2px 3px 8px rgba(40,10,80,0.10) !important;
+      }
+      [data-color-theme="lsu_tigers"][data-mode="dark"] .maverick-main {
+        background:
+          repeating-linear-gradient(90deg, transparent 0, transparent 79px, rgba(253,208,35,0.04) 79px, rgba(253,208,35,0.04) 80px),
+          #080010 !important;
+      }
+
+      /* ── Ole Miss: red & navy, Grove tailgate ── */
+      [data-color-theme="ole_miss"][data-mode="dark"] .maverick-card {
+        border-left-color: #ce1126 !important;
+        box-shadow: -2px 0 12px rgba(206,17,38,0.35), 2px 4px 12px rgba(0,0,0,0.5) !important;
+        background: linear-gradient(135deg, #12122a 0%, #0e0e20 100%) !important;
+      }
+      [data-color-theme="ole_miss"][data-mode="light"] .maverick-card {
+        border-left-color: #ce1126 !important;
+        box-shadow: -2px 0 8px rgba(206,17,38,0.20), 2px 3px 8px rgba(10,15,40,0.10) !important;
+      }
+      [data-color-theme="ole_miss"][data-mode="dark"] .maverick-main {
+        background: linear-gradient(180deg, rgba(206,17,38,0.06) 0%, transparent 30%), #08080e !important;
+      }
+
+      /* ── Southern Miss: black & gold, M.M. Roberts energy ── */
+      [data-color-theme="southern_miss"][data-mode="dark"] .maverick-card {
+        border-left-color: #f5c518 !important;
+        box-shadow: -2px 0 14px rgba(245,197,24,0.3), 2px 4px 12px rgba(0,0,0,0.6) !important;
+        background: linear-gradient(135deg, #1a1800 0%, #141200 100%) !important;
+      }
+      [data-color-theme="southern_miss"][data-mode="light"] .maverick-card {
+        border-left-color: #c8a000 !important;
+        border: 2px solid #333300 !important;
+        border-left: 4px solid #c8a000 !important;
+        box-shadow: 3px 3px 0 rgba(0,0,0,0.7) !important;
+      }
+      [data-color-theme="southern_miss"][data-mode="dark"] .maverick-main {
+        background:
+          repeating-linear-gradient(0deg, transparent 0, transparent 59px, rgba(245,197,24,0.05) 59px, rgba(245,197,24,0.05) 60px),
+          #0a0a00 !important;
+      }
+
+      /* ── Dallas Cowboys: navy & silver, AT&T Stadium prestige ── */
+      [data-color-theme="dallas_cowboys"][data-mode="dark"] .maverick-card {
+        border-left-color: #4a7fd4 !important;
+        box-shadow: -2px 0 12px rgba(74,127,212,0.3), 2px 4px 12px rgba(0,0,0,0.5) !important;
+        background: linear-gradient(135deg, #0e1830 0%, #0a1428 100%) !important;
+      }
+      [data-color-theme="dallas_cowboys"][data-mode="light"] .maverick-card {
+        border-left-color: #003594 !important;
+        box-shadow: -2px 0 8px rgba(0,53,148,0.20), 2px 3px 8px rgba(0,20,80,0.10) !important;
+      }
+      [data-color-theme="dallas_cowboys"][data-mode="dark"] .maverick-main {
+        background:
+          radial-gradient(ellipse at 50% 50%, rgba(134,147,151,0.04) 0%, transparent 70%),
+          #060a14 !important;
+      }
+
+      /* ── Saints: black & gold, Bourbon Street swagger ── */
+      [data-color-theme="saints"][data-mode="dark"] .maverick-card {
+        border-left-color: #d3bc8d !important;
+        box-shadow: -2px 0 12px rgba(211,188,141,0.25), 2px 4px 12px rgba(0,0,0,0.6) !important;
+        background: linear-gradient(135deg, #181408 0%, #111008 100%) !important;
+      }
+      [data-color-theme="saints"][data-mode="light"] .maverick-card {
+        border-left-color: #d3bc8d !important;
+        border: 1px solid #222 !important;
+        border-left: 4px solid #d3bc8d !important;
+        box-shadow: 2px 3px 0 rgba(0,0,0,0.5) !important;
+        background: #fff !important;
+      }
+      [data-color-theme="saints"][data-mode="dark"] .maverick-main {
+        background:
+          repeating-linear-gradient(90deg, transparent 0, transparent 29px, rgba(211,188,141,0.04) 29px, rgba(211,188,141,0.04) 30px),
+          #080808 !important;
+      }
+
+      /* ── Broncos: orange & navy, Mile High altitude ── */
+      [data-color-theme="broncos"][data-mode="dark"] .maverick-card {
+        border-left-color: #fb4f14 !important;
+        box-shadow: -2px 0 14px rgba(251,79,20,0.35), 2px 4px 12px rgba(0,0,0,0.5) !important;
+        background: linear-gradient(135deg, #0e1428 0%, #0a1020 100%) !important;
+      }
+      [data-color-theme="broncos"][data-mode="light"] .maverick-card {
+        border-left-color: #fb4f14 !important;
+        box-shadow: -2px 0 8px rgba(251,79,20,0.25), 2px 3px 8px rgba(0,20,60,0.10) !important;
+      }
+      [data-color-theme="broncos"][data-mode="dark"] .maverick-main {
+        background:
+          radial-gradient(ellipse at 30% 100%, rgba(251,79,20,0.08) 0%, transparent 50%),
+          #060810 !important;
+      }
+
+      /* ── Miami Hurricanes: orange & green, The U attitude ── */
+      [data-color-theme="miami_hurricanes"][data-mode="dark"] .maverick-card {
+        border-left-color: #f47321 !important;
+        box-shadow: -2px 0 14px rgba(244,115,33,0.35), 2px 4px 12px rgba(0,0,0,0.5) !important;
+        background: linear-gradient(135deg, #0a1e10 0%, #061408 100%) !important;
+      }
+      [data-color-theme="miami_hurricanes"][data-mode="light"] .maverick-card {
+        border-left-color: #f47321 !important;
+        box-shadow: -2px 0 8px rgba(244,115,33,0.25), 2px 3px 8px rgba(0,50,20,0.10) !important;
+      }
+      [data-color-theme="miami_hurricanes"][data-mode="dark"] .maverick-main {
+        background:
+          radial-gradient(ellipse at 70% 0%, rgba(244,115,33,0.08) 0%, transparent 50%),
+          radial-gradient(ellipse at 30% 100%, rgba(0,80,48,0.12) 0%, transparent 50%),
+          #040e08 !important;
       }
     `}</style>
   );
