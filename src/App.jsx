@@ -9712,6 +9712,7 @@ const ONBOARDING_STEPS = [
   { id: "welcome", title: "Welcome to MaverickOS", icon: "💰" },
   { id: "income", title: "Your Income", icon: "💼" },
   { id: "bills", title: "Monthly Bills", icon: "📋" },
+  { id: "categories", title: "Budget Categories", icon: "📊" },
   { id: "finances", title: "Debts & Savings", icon: "🏦" },
   { id: "theme", title: "Make It Yours", icon: "🎨" },
 ];
@@ -9723,6 +9724,7 @@ function OnboardingWizard({ onComplete }) {
     householdName: "",
     incomeStreams: [{ id: 1, source: "", amount: "", frequency: "semimonthly", anchorDate: today }],
     bills: [{ id: 1, name: "", amount: "", frequency: "monthly", dueDay: "1" }],
+    categories: INITIAL_CATEGORIES.map((c) => ({ ...c, enabled: true })),
     debts: [{ id: 1, name: "", balance: "", minPayment: "", apr: "", dueDay: "1" }],
     savingsTarget: "",
     checkingBalance: "",
@@ -9803,7 +9805,11 @@ function OnboardingWizard({ onComplete }) {
       limit: budgetTargets[`bill_${b.id}`]?.monthlyAmount || b.amount,
       color: "#38bdf8",
     }));
-    const categories = [...INITIAL_CATEGORIES, ...billCategories];
+    // Spending categories — user's chosen set + bill categories
+    const chosenCategories = data.categories
+      .filter((c) => c.enabled)
+      .map((c) => ({ id: c.id, name: c.name, icon: c.icon, limit: parseFloat(c.limit) || 0 }));
+    const categories = [...chosenCategories, ...billCategories];
 
     // Debts
     const debts = data.debts
@@ -9992,8 +9998,49 @@ function OnboardingWizard({ onComplete }) {
               </div>
             )}
 
-            {/* STEP 3: Debts & Savings */}
+            {/* STEP 3: Budget Categories */}
             {step === 3 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 4 }}>
+                  Choose which spending categories to track. Toggle any off you don't need, edit names and monthly limits, or add your own.
+                </div>
+                {data.categories.map((c) => (
+                  <div key={c.id} style={{ display: "flex", gap: 8, alignItems: "center", padding: "8px 10px", borderRadius: 10, border: `1px solid ${c.enabled ? "var(--border)" : "var(--border-subtle)"}`, background: c.enabled ? "var(--card)" : "var(--surface)", opacity: c.enabled ? 1 : 0.5, transition: "all 0.15s" }}>
+                    {/* Toggle */}
+                    <div onClick={() => {
+                      const newCats = data.categories.map((x) => x.id === c.id ? { ...x, enabled: !x.enabled } : x);
+                      update("categories", newCats);
+                    }} style={{ width: 36, height: 20, borderRadius: 10, padding: 2, background: c.enabled ? "var(--accent)" : "var(--track)", display: "flex", alignItems: "center", cursor: "pointer", flexShrink: 0, transition: "background 0.2s" }}>
+                      <div style={{ width: 16, height: 16, borderRadius: 8, background: "#fff", transition: "transform 0.2s", transform: c.enabled ? "translateX(16px)" : "translateX(0)", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+                    </div>
+                    {/* Icon */}
+                    <input value={c.icon} onChange={(e) => { const newCats = data.categories.map((x) => x.id === c.id ? { ...x, icon: e.target.value } : x); update("categories", newCats); }} maxLength={2} style={{ ...INPUT_STYLE, width: 42, textAlign: "center", fontSize: 16, padding: "6px 4px", flexShrink: 0 }} />
+                    {/* Name */}
+                    <input value={c.name} onChange={(e) => { const newCats = data.categories.map((x) => x.id === c.id ? { ...x, name: e.target.value } : x); update("categories", newCats); }} style={{ ...INPUT_STYLE, flex: 1 }} placeholder="Category name" />
+                    {/* Limit */}
+                    <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
+                      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>$</span>
+                      <input type="number" min="0" step="10" value={c.limit} onChange={(e) => { const newCats = data.categories.map((x) => x.id === c.id ? { ...x, limit: e.target.value } : x); update("categories", newCats); }} style={{ ...INPUT_STYLE, width: 80 }} placeholder="0" />
+                      <span style={{ fontSize: 11, color: "var(--text-muted)" }}>/mo</span>
+                    </div>
+                    {/* Remove custom */}
+                    {!INITIAL_CATEGORIES.find((ic) => ic.id === c.id) && (
+                      <button onClick={() => update("categories", data.categories.filter((x) => x.id !== c.id))} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 18, padding: "0 2px", lineHeight: 1 }}>×</button>
+                    )}
+                  </div>
+                ))}
+                {/* Add custom category */}
+                <button onClick={() => {
+                  const newId = `custom_${Date.now()}`;
+                  update("categories", [...data.categories, { id: newId, name: "", icon: "●", limit: "", enabled: true }]);
+                }} style={{ padding: "8px", borderRadius: 8, border: "1px dashed var(--border)", background: "transparent", color: "var(--text-muted)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                  + Add Custom Category
+                </button>
+              </div>
+            )}
+
+            {/* STEP 4: Debts & Savings */}
+            {step === 4 && (
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Where do you stand financially right now?</div>
 
@@ -10054,8 +10101,8 @@ function OnboardingWizard({ onComplete }) {
               </div>
             )}
 
-            {/* STEP 4: Theme */}
-            {step === 4 && (
+            {/* STEP 5: Theme */}
+            {step === 5 && (
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <div style={{ fontSize: 13, color: "var(--text-muted)", textAlign: "center" }}>Pick a look that feels right. You can change this anytime in Settings.</div>
 
