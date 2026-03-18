@@ -8943,35 +8943,113 @@ function CategoryCard({ category, transactions, onExpand, isExpanded, onEditTarg
   );
 }
 
-function DraggableCategoryList({ categories, setCategories, txByCategory, budgetTargets }) {
-  const { dragIndex, overIndex, startDrag, listId } = useDragToReorder(categories, setCategories);
+// Compact list row — used in both List view and Custom Order drag mode
+function CategoryListRow({ category, transactions, target, rollover, onAddTx, onEditTarget, onFundTarget, onEditCategory, dragHandle, isDragging, isOver, listId, dragIdx }) {
+  const [expanded, setExpanded] = useState(false);
+  const spent = transactions.reduce((s, t) => s + t.amount, 0);
+  const tStatus = getTargetStatus(target, spent, category);
+  const isTargetByDate = target?.type === "target_by_date";
+  const effectiveLimit = tStatus.effectiveLimit || tStatus.monthlyNeeded || category.limit;
+  const diff = effectiveLimit - spent;
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
-      <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
-        Drag the handles to reorder. Switch to another sort mode to restore automatic ordering.
+    <div
+      data-drag-list={listId} data-drag-item={dragIdx}
+      style={{ opacity: isDragging ? 0.35 : 1, borderRadius: 12, border: `2px solid ${isOver ? "var(--accent)" : "var(--border)"}`, background: "var(--card)", transition: "border-color 0.15s, opacity 0.15s", marginBottom: 2 }}
+    >
+      {/* Main row */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", cursor: "pointer" }} onClick={() => setExpanded((v) => !v)}>
+        {dragHandle}
+        {/* Icon */}
+        <div style={{ width: 32, height: 32, borderRadius: 8, background: "var(--icon-bg)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>
+          {category.icon}
+        </div>
+        {/* Name + subtitle */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 6 }}>
+            {category.name}
+            <button onClick={(e) => { e.stopPropagation(); onEditCategory && onEditCategory(category); }}
+              style={{ background: "none", border: "none", padding: "0 2px", cursor: "pointer", color: "var(--text-muted)", lineHeight: 1, flexShrink: 0 }}
+              onMouseEnter={(e) => e.currentTarget.style.color = "var(--text-secondary)"}
+              onMouseLeave={(e) => e.currentTarget.style.color = "var(--text-muted)"}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+          </div>
+          {/* Progress bar inline */}
+          {effectiveLimit > 0 && (
+            <div style={{ marginTop: 4 }}>
+              <ProgressBar value={spent} max={effectiveLimit} height={4} />
+            </div>
+          )}
+        </div>
+        {/* Amount + status */}
+        <div style={{ textAlign: "right", flexShrink: 0, minWidth: 100 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, fontVariantNumeric: "tabular-nums", color: "var(--text-primary)" }}>{fmt(spent)}</div>
+          {effectiveLimit > 0 && (
+            <div style={{ fontSize: 11, fontVariantNumeric: "tabular-nums", color: diff >= 0 ? "var(--green)" : "var(--red)", fontWeight: 600, marginTop: 1 }}>
+              {diff >= 0 ? `${fmt(diff)} left` : `${fmt(Math.abs(diff))} over`}
+            </div>
+          )}
+        </div>
+        <TargetStatusBadge status={tStatus.status} />
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ color: "var(--text-muted)", flexShrink: 0, transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
       </div>
-      {categories.map((cat, idx) => {
-        const spent = (txByCategory[cat.id] || []).reduce((s, t) => s + t.amount, 0);
-        const tStatus = getTargetStatus(budgetTargets[cat.id], spent, cat);
-        const limit = tStatus.effectiveLimit || tStatus.monthlyNeeded || cat.limit;
-        const isDragging = dragIndex === idx;
-        const isOver = overIndex === idx && dragIndex !== null && dragIndex !== idx;
-        return (
-          <div key={cat.id} data-drag-list={listId} data-drag-item={idx} style={{ opacity: isDragging ? 0.35 : 1, borderRadius: 12, border: `2px solid ${isOver ? "var(--accent)" : "var(--border)"}`, background: "var(--card)", transition: "border-color 0.15s, opacity 0.15s" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "12px 16px" }}>
-              <DragHandle onPointerDown={(e) => startDrag(e, idx)} />
-              <span style={{ fontSize: 18, marginRight: 4, flexShrink: 0 }}>{cat.icon}</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{cat.name}</div>
-                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>
-                  {fmt(spent)} {limit > 0 ? `/ ${fmt(limit)}` : ""}
-                </div>
-              </div>
-              <TargetStatusBadge status={tStatus.status} />
+
+      {/* Expanded transactions panel */}
+      {expanded && (
+        <div style={{ borderTop: "1px solid var(--border)", background: "var(--surface)", maxHeight: 320, overflowY: "auto" }}>
+          <div style={{ padding: "8px 14px 4px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)" }}>Transactions</span>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button onClick={(e) => { e.stopPropagation(); onAddTx && onAddTx(category); }}
+                style={{ background: "var(--accent)", border: "none", borderRadius: 6, padding: "3px 10px", fontSize: 11, color: "#fff", cursor: "pointer", fontWeight: 600 }}>+ Add</button>
+              {isTargetByDate && !tStatus.isComplete && (
+                <button onClick={(e) => { e.stopPropagation(); onFundTarget(category); }}
+                  style={{ background: "var(--accent)", border: "none", borderRadius: 6, padding: "3px 10px", fontSize: 11, color: "#fff", cursor: "pointer", fontWeight: 600 }}>+ Fund</button>
+              )}
+              <button onClick={(e) => { e.stopPropagation(); onEditTarget(category); }}
+                style={{ background: "none", border: "1px solid var(--border)", borderRadius: 6, padding: "3px 10px", fontSize: 11, color: "var(--text-secondary)", cursor: "pointer", fontWeight: 500 }}>Edit Target</button>
             </div>
           </div>
-        );
-      })}
+          {[...transactions].sort((a, b) => new Date(b.date) - new Date(a.date)).map((t) => (
+            <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderBottom: "1px solid var(--border-subtle)" }}>
+              <div>
+                <div style={{ fontSize: 13, color: "var(--text-primary)", fontWeight: 500 }}>{t.description}</div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>{new Date(t.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}</div>
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", fontVariantNumeric: "tabular-nums" }}>{fmt(t.amount)}</div>
+            </div>
+          ))}
+          {transactions.length === 0 && <div style={{ padding: "16px 14px", textAlign: "center", color: "var(--text-muted)", fontSize: 12 }}>No transactions yet</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DraggableCategoryList({ categories, setCategories, txByCategory, budgetTargets, onAddTx, onEditTarget, onFundTarget, onEditCategory, currentRollovers }) {
+  const { dragIndex, overIndex, startDrag, listId } = useDragToReorder(categories, setCategories);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 0, marginBottom: 14 }}>
+      <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8 }}>
+        Drag the handles to reorder. Switch to another sort mode to restore automatic ordering.
+      </div>
+      {categories.map((cat, idx) => (
+        <CategoryListRow
+          key={cat.id}
+          category={cat}
+          transactions={txByCategory[cat.id] || []}
+          target={budgetTargets[cat.id] || null}
+          rollover={currentRollovers[cat.id] || 0}
+          onAddTx={onAddTx} onEditTarget={onEditTarget} onFundTarget={onFundTarget} onEditCategory={onEditCategory}
+          dragHandle={<DragHandle onPointerDown={(e) => startDrag(e, idx)} />}
+          isDragging={dragIndex === idx}
+          isOver={overIndex === idx && dragIndex !== null && dragIndex !== idx}
+          listId={listId} dragIdx={idx}
+        />
+      ))}
     </div>
   );
 }
@@ -8980,6 +9058,7 @@ function BudgetPage({ categories, transactions, setCategories, setTransactions, 
   const [expandedId, setExpandedId] = useState(null);
   const [modal, setModal] = useState(null);
   const [sortBy, setSortBy] = useState("status");
+  const [viewMode, setViewMode] = useState("grid"); // "grid" | "list"
   const [viewDate, setViewDate] = useState(() => new Date());
 
   const startDay = settings?.startDayOfMonth || 1;
@@ -9315,35 +9394,77 @@ function BudgetPage({ categories, transactions, setCategories, setTransactions, 
         </Card>
       )}
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        {[{ key: "status", label: "By Status" }, { key: "spent", label: "By Spent" }, { key: "name", label: "By Name" }, { key: "manual", label: "⠿ Custom Order" }].map((s) => (
-          <button key={s.key} onClick={() => setSortBy(s.key)} style={pillStyle(sortBy === s.key)}>{s.label}</button>
-        ))}
+      {/* Sort + View controls */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {[{ key: "status", label: "By Status" }, { key: "spent", label: "By Spent" }, { key: "name", label: "By Name" }, { key: "manual", label: "⠿ Custom Order" }].map((s) => (
+            <button key={s.key} onClick={() => { setSortBy(s.key); setExpandedId(null); }} style={pillStyle(sortBy === s.key)}>{s.label}</button>
+          ))}
+        </div>
+        {/* List / Grid view toggle — hidden in Custom Order mode */}
+        {sortBy !== "manual" && (
+          <div style={{ display: "flex", gap: 4, padding: "3px", borderRadius: 9, border: "1px solid var(--border)", background: "var(--surface)" }}>
+            {[
+              { mode: "grid", icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg> },
+              { mode: "list", icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> },
+            ].map(({ mode, icon }) => (
+              <button key={mode} onClick={() => setViewMode(mode)} style={{ padding: "5px 9px", borderRadius: 6, border: "none", background: viewMode === mode ? "var(--text-primary)" : "transparent", color: viewMode === mode ? "var(--card)" : "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center", transition: "all 0.15s" }}>
+                {icon}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
+      {/* Custom Order (drag-to-reorder list with full info) */}
       {sortBy === "manual" && (
         <DraggableCategoryList
           categories={categories} setCategories={setCategories}
           txByCategory={txByCategory} budgetTargets={budgetTargets}
+          currentRollovers={currentRollovers}
+          onAddTx={(c) => setModal({ type: "addTx", categoryId: c.id })}
+          onEditTarget={(c) => setModal({ type: "editTarget", category: c })}
+          onFundTarget={(c) => setModal({ type: "fund", category: c })}
+          onEditCategory={(c) => setModal({ type: "editCat", category: c })}
         />
       )}
 
-      {sortBy !== "manual" && (
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 14, alignItems: "start" }}>
-        {sortedCategories.map((cat) => (
-          <SwipeToDelete key={cat.id} onDelete={() => { showUndo(`Deleted "${cat.name}" category`); setCategories((prev) => prev.filter((c) => c.id !== cat.id)); }}>
-            <CategoryCard category={cat} transactions={txByCategory[cat.id] || []}
+      {/* List view */}
+      {sortBy !== "manual" && viewMode === "list" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          {sortedCategories.map((cat) => (
+            <CategoryListRow
+              key={cat.id}
+              category={cat}
+              transactions={txByCategory[cat.id] || []}
               target={budgetTargets[cat.id] || null}
               rollover={currentRollovers[cat.id] || 0}
-              isExpanded={expandedId === cat.id} onExpand={setExpandedId}
+              onAddTx={(c) => setModal({ type: "addTx", categoryId: c.id })}
               onEditTarget={(c) => setModal({ type: "editTarget", category: c })}
               onFundTarget={(c) => setModal({ type: "fund", category: c })}
-              onAddTx={(c) => setModal({ type: "addTx", categoryId: c.id })}
               onEditCategory={(c) => setModal({ type: "editCat", category: c })}
             />
-          </SwipeToDelete>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
+
+      {/* Grid view (default) */}
+      {sortBy !== "manual" && viewMode === "grid" && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 14, alignItems: "start" }}>
+          {sortedCategories.map((cat) => (
+            <SwipeToDelete key={cat.id} onDelete={() => { showUndo(`Deleted "${cat.name}" category`); setCategories((prev) => prev.filter((c) => c.id !== cat.id)); }}>
+              <CategoryCard category={cat} transactions={txByCategory[cat.id] || []}
+                target={budgetTargets[cat.id] || null}
+                rollover={currentRollovers[cat.id] || 0}
+                isExpanded={expandedId === cat.id} onExpand={setExpandedId}
+                onEditTarget={(c) => setModal({ type: "editTarget", category: c })}
+                onFundTarget={(c) => setModal({ type: "fund", category: c })}
+                onAddTx={(c) => setModal({ type: "addTx", categoryId: c.id })}
+                onEditCategory={(c) => setModal({ type: "editCat", category: c })}
+              />
+            </SwipeToDelete>
+          ))}
+        </div>
       )}
 
       {(modal === "addTx" || modal?.type === "addTx") && (
