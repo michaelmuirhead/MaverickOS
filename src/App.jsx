@@ -1025,6 +1025,18 @@ function MobileMoreMenu({ activePage, onNavigate, onClose, hiddenPages = [] }) {
 function ResponsiveStyles() {
   return (
     <style>{`
+      /* Prevent iOS keyboard from jolting the layout */
+      html, body {
+        height: -webkit-fill-available;
+        overflow-x: hidden;
+      }
+      /* Onboarding wizard scrolls naturally when keyboard is open */
+      .maverick-onboarding {
+        min-height: 100vh;
+        min-height: -webkit-fill-available;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
       @media (max-width: 768px) {
         .maverick-main { padding: 16px 12px 80px 12px !important; max-height: 100vh !important; }
         .maverick-content { max-width: 100% !important; }
@@ -9683,6 +9695,11 @@ function PwaHead() {
     // Title
     document.title = "MaverickOS";
 
+    // Fix iOS keyboard viewport shifting — update viewport meta
+    let viewport = document.querySelector('meta[name="viewport"]');
+    if (!viewport) { viewport = document.createElement("meta"); viewport.name = "viewport"; document.head.appendChild(viewport); }
+    viewport.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content";
+
     // Web app manifest (inline as data URI)
     const manifest = {
       name: "MaverickOS",
@@ -9869,15 +9886,14 @@ function OnboardingWizard({ onComplete }) {
   const previewVars = data.theme === "light" ? previewTheme.light : previewTheme.dark;
 
   return (
-    <div style={{
+    <div className="maverick-onboarding" style={{
       ...previewVars,
       fontFamily: "'DM Sans', 'SF Pro Display', -apple-system, sans-serif",
       background: "var(--bg)", color: "var(--text-primary)",
-      minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
-      padding: 20,
+      padding: "env(safe-area-inset-top, 20px) 20px env(safe-area-inset-bottom, 20px) 20px",
     }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
-      <div style={{ width: "100%", maxWidth: 520 }}>
+      <div style={{ width: "100%", maxWidth: 520, margin: "0 auto", paddingTop: 24, paddingBottom: 40 }}>
         {/* Progress dots */}
         <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 32 }}>
           {ONBOARDING_STEPS.map((s, i) => (
