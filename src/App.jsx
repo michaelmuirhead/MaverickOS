@@ -3053,6 +3053,111 @@ function formatShortDate(date) {
   return { month: months[date.getMonth()], day: date.getDate() };
 }
 
+function WaterfallSchedule({ paycheckSchedules, year, month, customItems, setCustomItems, monthlyRollovers, setShowAddItem, setShowAddIncome, setShowAddSavings, allPaychecks, WaterfallRow }) {
+  const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
+  const startBuffer = monthlyRollovers[monthKey] || 0;
+  const orderKey = `order-${monthKey}`;
+
+  // Build flat ordered list of all lines
+  const allLines = useMemo(() => {
+    const lines = [];
+    let lineIdx = 0;
+    paycheckSchedules.forEach((pc) => {
+      pc.lines.forEach((line) => {
+        lines.push({ ...line, paycheckKey: pc.key, streamColor: pc.streamColor, streamName: pc.streamName, lineId: lineIdx++ });
+      });
+    });
+    const savedOrder = customItems[orderKey];
+    if (savedOrder && Array.isArray(savedOrder)) {
+      const idxMap = {};
+      savedOrder.forEach((id, i) => { idxMap[id] = i; });
+      lines.sort((a, b) => {
+        const posA = idxMap[a.lineId] !== undefined ? idxMap[a.lineId] : 9999;
+        const posB = idxMap[b.lineId] !== undefined ? idxMap[b.lineId] : 9999;
+        return posA - posB;
+      });
+    }
+    // Recalculate running balance
+    let balance = startBuffer;
+    lines.forEach((line) => {
+      if (line.isIncome) balance += line.amount;
+      else balance -= line.amount;
+      line.balance = balance;
+    });
+    return lines;
+  }, [paycheckSchedules, customItems, orderKey, startBuffer]);
+
+  const finalBalance = allLines.length > 0 ? allLines[allLines.length - 1].balance : startBuffer;
+  const hasCustomOrder = !!customItems[orderKey];
+
+  // Drag-to-reorder — saves new lineId order to customItems[orderKey]
+  const reorderLines = useCallback((newLines) => {
+    const newOrder = newLines.map((l) => l.lineId);
+    setCustomItems((prev) => ({ ...prev, [orderKey]: newOrder }));
+  }, [orderKey, setCustomItems]);
+
+  const { dragIndex, overIndex, startDrag, listId } = useDragToReorder(allLines, reorderLines);
+
+  const resetOrder = () => {
+    setCustomItems((prev) => { const next = { ...prev }; delete next[orderKey]; return next; });
+  };
+
+  return (
+    <Card>
+      {/* Header */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr auto", padding: "14px 20px", borderBottom: "1px solid var(--border-subtle)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>Spending Schedule</span>
+          {hasCustomOrder && (
+            <button onClick={resetOrder} style={{ fontSize: 10, fontWeight: 600, color: "var(--accent)", background: "none", border: "none", cursor: "pointer", padding: 0 }}>Reset Order</button>
+          )}
+        </div>
+        <span style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>Balance</span>
+      </div>
+
+      {/* Starting buffer */}
+      {startBuffer !== 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "28px 48px 1fr auto", alignItems: "center", padding: "10px 16px 10px 4px", borderBottom: "1px solid var(--border-subtle)", background: startBuffer > 0 ? "var(--green-bg)" : "var(--red-bg)" }}>
+          <div />
+          <div style={{ textAlign: "center", lineHeight: 1.2 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>{new Date(year, month, 1).toLocaleDateString("en-US", { month: "short" }).toUpperCase().slice(0, 3)}</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-muted)" }}>1</div>
+          </div>
+          <div style={{ paddingLeft: 10 }}>
+            <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>Starting Buffer</span>
+            <span style={{ fontSize: 12, color: "var(--text-muted)", marginLeft: 8 }}>rolled over</span>
+          </div>
+          <div style={{ textAlign: "right", minWidth: 100 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, fontVariantNumeric: "tabular-nums", color: startBuffer > 0 ? "var(--green)" : "var(--red)" }}>{fmt(startBuffer)}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Waterfall rows with drag */}
+      {allLines.map((line, i) => (
+        <div key={`${line.paycheckKey}-${line.lineId}`}
+          data-drag-list={listId} data-drag-item={i}
+          style={{ opacity: dragIndex === i ? 0.4 : 1, outline: overIndex === i && dragIndex !== null && dragIndex !== i ? "2px solid var(--accent)" : "none", transition: "opacity 0.15s, outline 0.1s" }}>
+          <WaterfallRow line={line} paycheckKey={line.paycheckKey} onDragStart={(e) => startDrag(e, i)} />
+        </div>
+      ))}
+
+      {/* Footer */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 20px", borderTop: "1px solid var(--border)", background: finalBalance < 0 ? "var(--red-bg)" : "var(--surface)" }}>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => setShowAddItem(allPaychecks[allPaychecks.length - 1]?.key)} style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", color: "var(--text-secondary)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>+ Expense</button>
+          <button onClick={() => setShowAddSavings(allPaychecks[allPaychecks.length - 1]?.key)} style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", color: "var(--accent)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>+ Savings</button>
+          <button onClick={() => setShowAddIncome(allPaychecks[allPaychecks.length - 1]?.key)} style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", color: "var(--green)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>+ Income</button>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>End of Month</div>
+          <div style={{ fontSize: 20, fontWeight: 700, fontVariantNumeric: "tabular-nums", color: finalBalance < 0 ? "var(--red)" : "var(--green)" }}>{fmt(finalBalance)}</div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplates, savingsGoals, setSavingsGoals, paidDates, setPaidDates, customItems, setCustomItems, monthlyRollovers, setMonthlyRollovers, income, settings, setSettings, showUndo }) {
   const [viewDate, setViewDate] = useState(() => new Date());
   const [showAddStream, setShowAddStream] = useState(false);
@@ -3248,7 +3353,7 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
   }, [setPaidDates]);
 
   // Waterfall row component with swipe-right-to-pay for bills
-  const WaterfallRow = ({ line, paycheckKey, isLast, isFirst, onMoveUp, onMoveDown }) => {
+  const WaterfallRow = ({ line, paycheckKey, onDragStart }) => {
     const isIncome = line.isIncome;
     const canRemove = line.customId != null;
     const isBill = line.type === "bill";
@@ -3319,22 +3424,6 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
       if (didSwipe.current) { e.stopPropagation(); e.preventDefault(); didSwipe.current = false; }
     };
 
-    const arrowBtn = (direction, onClick, disabled) => (
-      <button onClick={(e) => { e.stopPropagation(); if (!disabled) onClick(); }}
-        style={{
-          background: "none", border: "none", padding: "2px", cursor: disabled ? "default" : "pointer",
-          color: disabled ? "var(--border)" : "var(--text-muted)", display: "flex", alignItems: "center",
-          opacity: disabled ? 0.3 : 1, transition: "color 0.15s",
-        }}
-        onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.color = "var(--accent)"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.color = disabled ? "var(--border)" : "var(--text-muted)"; }}
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          {direction === "up" ? <polyline points="18 15 12 9 6 15"/> : <polyline points="6 9 12 15 18 9"/>}
-        </svg>
-      </button>
-    );
-
     const revealPct = canSwipePaid && swipeOffset > 0 ? Math.min(swipeOffset / SWIPE_THRESHOLD, 1) : 0;
 
     return (
@@ -3391,11 +3480,8 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
             cursor: canSwipe ? "grab" : "default",
           }}
         >
-          {/* Reorder arrows */}
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
-            {arrowBtn("up", onMoveUp, isFirst)}
-            {arrowBtn("down", onMoveDown, isLast)}
-          </div>
+          {/* Drag handle */}
+          <DragHandle onPointerDown={onDragStart} />
 
           {/* Date column */}
           <div style={{ textAlign: "center", lineHeight: 1.2 }}>
@@ -3535,150 +3621,19 @@ function PaycheckPlannerPage({ paycheckStreams, setPaycheckStreams, billTemplate
         </Card>
       )}
 
-      {paycheckSchedules.length > 0 && (() => {
-        // Build a single unified timeline — paycheck waterfall order:
-        // Paycheck 1 income → expenses due before paycheck 2 → Paycheck 2 income → expenses → etc.
-        const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
-        const startBuffer = monthlyRollovers[monthKey] || 0;
-
-        // Flatten paycheckSchedules in order — each paycheck's lines are already sorted correctly
-        // (income first, then bills by amount, then savings, then custom)
-        const allLines = [];
-        let lineIdx = 0;
-        paycheckSchedules.forEach((pc) => {
-          pc.lines.forEach((line) => {
-            allLines.push({ ...line, paycheckKey: pc.key, streamColor: pc.streamColor, streamName: pc.streamName, lineId: lineIdx++ });
-          });
-        });
-
-        // Apply manual order overrides if stored
-        const orderKey = `order-${monthKey}`;
-        const savedOrder = customItems[orderKey];
-        if (savedOrder && Array.isArray(savedOrder)) {
-          const idxMap = {};
-          savedOrder.forEach((id, i) => { idxMap[id] = i; });
-          allLines.sort((a, b) => {
-            const posA = idxMap[a.lineId] !== undefined ? idxMap[a.lineId] : 9999;
-            const posB = idxMap[b.lineId] !== undefined ? idxMap[b.lineId] : 9999;
-            return posA - posB;
-          });
-        }
-
-        // Recalculate running balance across the unified timeline
-        let balance = startBuffer;
-        allLines.forEach((line) => {
-          if (line.isIncome) balance += line.amount;
-          else balance -= line.amount;
-          line.balance = balance;
-        });
-
-        const finalBalance = allLines.length > 0 ? allLines[allLines.length - 1].balance : startBuffer;
-
-        // Swap two lines and persist the new order
-        const swapLines = (idx, dir) => {
-          const targetIdx = idx + dir;
-          if (targetIdx < 0 || targetIdx >= allLines.length) return;
-          const newOrder = allLines.map((l) => l.lineId);
-          [newOrder[idx], newOrder[targetIdx]] = [newOrder[targetIdx], newOrder[idx]];
-          setCustomItems((prev) => ({ ...prev, [orderKey]: newOrder }));
-        };
-
-        const resetOrder = () => {
-          setCustomItems((prev) => {
-            const next = { ...prev };
-            delete next[orderKey];
-            return next;
-          });
-        };
-
-        const hasCustomOrder = !!customItems[orderKey];
-
-        return (
-          <Card>
-            {/* Header */}
-            <div style={{
-              display: "grid", gridTemplateColumns: "1fr auto",
-              padding: "14px 20px", borderBottom: "1px solid var(--border-subtle)",
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>
-                  Spending Schedule
-                </span>
-                {hasCustomOrder && (
-                  <button onClick={resetOrder} style={{ fontSize: 10, fontWeight: 600, color: "var(--accent)", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-                    Reset Order
-                  </button>
-                )}
-              </div>
-              <span style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>
-                Balance
-              </span>
-            </div>
-
-            {/* Starting buffer — only if non-zero */}
-            {startBuffer !== 0 && (
-              <div style={{
-                display: "grid", gridTemplateColumns: "28px 48px 1fr auto",
-                alignItems: "center", padding: "10px 16px 10px 4px",
-                borderBottom: "1px solid var(--border-subtle)",
-                background: startBuffer > 0 ? "var(--green-bg)" : "var(--red-bg)",
-              }}>
-                <div />
-                <div style={{ textAlign: "center", lineHeight: 1.2 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
-                    {new Date(year, month, 1).toLocaleDateString("en-US", { month: "short" }).toUpperCase().slice(0, 3)}
-                  </div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-muted)" }}>1</div>
-                </div>
-                <div style={{ paddingLeft: 10 }}>
-                  <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>Starting Buffer</span>
-                  <span style={{ fontSize: 12, color: "var(--text-muted)", marginLeft: 8 }}>rolled over</span>
-                </div>
-                <div style={{ textAlign: "right", minWidth: 100 }}>
-                  <div style={{ fontSize: 16, fontWeight: 700, fontVariantNumeric: "tabular-nums", color: startBuffer > 0 ? "var(--green)" : "var(--red)" }}>
-                    {fmt(startBuffer)}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Unified waterfall rows */}
-            {allLines.map((line, i) => (
-              <WaterfallRow key={`${line.paycheckKey}-${line.lineId}`} line={line} paycheckKey={line.paycheckKey}
-                isFirst={i === 0} isLast={i === allLines.length - 1}
-                onMoveUp={() => swapLines(i, -1)} onMoveDown={() => swapLines(i, 1)} />
-            ))}
-
-            {/* Footer */}
-            <div style={{
-              display: "flex", justifyContent: "space-between", alignItems: "center",
-              padding: "12px 20px", borderTop: "1px solid var(--border)",
-              background: finalBalance < 0 ? "var(--red-bg)" : "var(--surface)",
-            }}>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => setShowAddItem(allPaychecks[allPaychecks.length - 1]?.key)}
-                  style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", color: "var(--text-secondary)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
-                  + Expense
-                </button>
-                <button onClick={() => setShowAddSavings(allPaychecks[allPaychecks.length - 1]?.key)}
-                  style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", color: "var(--accent)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
-                  + Savings
-                </button>
-                <button onClick={() => setShowAddIncome(allPaychecks[allPaychecks.length - 1]?.key)}
-                  style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", color: "var(--green)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
-                  + Income
-                </button>
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>End of Month</div>
-                <div style={{ fontSize: 20, fontWeight: 700, fontVariantNumeric: "tabular-nums", color: finalBalance < 0 ? "var(--red)" : "var(--green)" }}>
-                  {fmt(finalBalance)}
-                </div>
-              </div>
-            </div>
-          </Card>
-        );
-      })()}
+      {paycheckSchedules.length > 0 && (
+        <WaterfallSchedule
+          paycheckSchedules={paycheckSchedules}
+          year={year} month={month}
+          customItems={customItems} setCustomItems={setCustomItems}
+          monthlyRollovers={monthlyRollovers}
+          setShowAddItem={setShowAddItem}
+          setShowAddIncome={setShowAddIncome}
+          setShowAddSavings={setShowAddSavings}
+          allPaychecks={allPaychecks}
+          WaterfallRow={WaterfallRow}
+        />
+      )}
 
       {/* Month rollover section */}
       {paycheckSchedules.length > 0 && (() => {
