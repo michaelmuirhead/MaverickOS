@@ -108,7 +108,7 @@ export function AuthScreen({ onAuth }) {
 
   return (
     <div style={{
-      minHeight: "100vh", minHeight: "-webkit-fill-available",
+      minHeight: "-webkit-fill-available",
       display: "flex", alignItems: "center", justifyContent: "center",
       background: "var(--bg)", color: "var(--text-primary)",
       fontFamily: "'DM Sans', 'SF Pro Display', -apple-system, sans-serif",
