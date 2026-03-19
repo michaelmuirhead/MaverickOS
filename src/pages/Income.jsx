@@ -1,6 +1,15 @@
+const INCOME_CATEGORIES = [
+  { key: "employment", label: "Employment", icon: "💼" },
+  { key: "freelance", label: "Freelance", icon: "💻" },
+  { key: "investment", label: "Investment", icon: "📈" },
+  { key: "rental", label: "Rental", icon: "🏠" },
+  { key: "other", label: "Gift / Other", icon: "🎁" },
+];
+
 import { useState } from "react";
-import { Card, CardHeader, SwipeToDelete, Overlay } from "../components/ui.jsx";
+import { Card, CardHeader, SwipeToDelete, Overlay, FrequencyBadge, MetricBox } from "../components/ui.jsx";
 import { fmt, nextId, INPUT_STYLE, FREQUENCY_LABELS } from "../engine.js";
+import { FieldLabel } from "../components/forms.jsx"
 
 export function IncomePage({ income, setIncome, showUndo }) {
   const [modal, setModal] = useState(null);

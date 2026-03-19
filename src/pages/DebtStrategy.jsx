@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Card, CardHeader, MetricBox, ProgressBar } from "../components/ui.jsx";
-import { fmt, fmtCompact } from "../engine.js";
+import { fmt, fmtCompact, INPUT_STYLE } from "../engine.js";
 
 export function DebtStrategyPage({ debts, income }) {
   const [extraPayment, setExtraPayment] = useState("200");

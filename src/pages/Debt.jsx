@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { Card, CardHeader, ProgressBar, SwipeToDelete, Overlay, DragHandle, useDragToReorder } from "../components/ui.jsx";
+import { Card, CardHeader, ProgressBar, SwipeToDelete, Overlay, DragHandle, useDragToReorder, MetricBox } from "../components/ui.jsx";
 import { fmt, nextId, INPUT_STYLE, FREQUENCY_LABELS } from "../engine.js";
+import { DraggableSimpleList } from "./RecurringBills.jsx"
+import { FieldLabel } from "../components/forms.jsx"
 
 export function DebtPage({ debts, setDebts, showUndo }) {
   const [modal, setModal] = useState(null);

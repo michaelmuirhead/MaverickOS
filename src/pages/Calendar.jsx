@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Card, Overlay, FrequencyBadge } from "../components/ui.jsx";
+import { Card, Overlay, FrequencyBadge, MetricBox } from "../components/ui.jsx";
 import { fmt, nextId, INPUT_STYLE, FREQUENCY_LABELS, generateBillInstances } from "../engine.js";
 
 export function CalendarPage({ billTemplates, setBillTemplates, paidDates, setPaidDates }) {
@@ -265,7 +265,7 @@ export function CalendarPage({ billTemplates, setBillTemplates, paidDates, setPa
   );
 }
 
-function AddBillForm({ onAdd, onClose }) {
+export function AddBillForm({ onAdd, onClose }) {
   const [form, setForm] = useState({
     name: "", amount: "", anchorDate: new Date().toISOString().split("T")[0],
     recurring: false, frequency: "monthly",

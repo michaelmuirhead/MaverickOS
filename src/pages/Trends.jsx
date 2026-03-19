@@ -1,5 +1,21 @@
+const TREND_COLORS = ["var(--accent)","var(--green)","var(--amber)","var(--red)","#38bdf8","#a78bfa","#f472b6","#fb923c"];
+
+function Sparkline({ data, color = "var(--accent)", height = 40 }) {
+  if (!data || data.length < 2) return null;
+  const max = Math.max(...data, 1);
+  const min = Math.min(...data, 0);
+  const range = max - min || 1;
+  const w = 120, h = height;
+  const pts = data.map((v, i) => `${(i/(data.length-1))*w},${h - ((v-min)/range)*h}`).join(' ');
+  return (
+    <svg width={w} height={h} style={{ overflow: 'visible' }}>
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 import { useState, useMemo } from "react";
-import { Card, CardHeader } from "../components/ui.jsx";
+import { Card, CardHeader, MetricBox } from "../components/ui.jsx";
 import { fmt, fmtCompact, pct } from "../engine.js";
 
 export function SpendingTrendsPage({ categories, transactions }) {

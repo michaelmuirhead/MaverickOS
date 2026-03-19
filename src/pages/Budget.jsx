@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { Card, CardHeader, MetricBox, ProgressBar, SwipeToDelete, Overlay, DragHandle, useDragToReorder } from "../components/ui.jsx";
 import { fmt, fmtCompact, pct, nextId, INPUT_STYLE, pillStyle } from "../engine.js";
+import { AddCategoryFields, AddTransactionFields, EditCategoryFields, FieldLabel, ModalActions, ModalForm } from "../components/forms.jsx"
 
 export function getTargetStatus(target, spent, category) {
   if (!target) {

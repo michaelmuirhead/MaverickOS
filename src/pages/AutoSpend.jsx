@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
-import { Card, CardHeader, SwipeToDelete, Overlay, FrequencyBadge } from "../components/ui.jsx";
+import { Card, CardHeader, SwipeToDelete, Overlay, FrequencyBadge, MetricBox } from "../components/ui.jsx";
 import { fmt, nextId, INPUT_STYLE, FREQUENCY_LABELS } from "../engine.js";
+import { FieldLabel, ModalActions, ModalForm } from "../components/forms.jsx"
 
 export function RecurringTransactionsPage({ recurringTransactions, setRecurringTransactions, categories, transactions, setTransactions, showUndo }) {
   const [modal, setModal] = useState(null);

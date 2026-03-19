@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { Card, SwipeToDelete, Overlay } from "../components/ui.jsx";
 import { fmt, nextId, INPUT_STYLE } from "../engine.js";
+import { AddTransactionFields, ModalForm } from "../components/forms.jsx"
 
 export function TransactionsPage({ transactions, setTransactions, categories, showUndo }) {
   const [search, setSearch] = useState("");

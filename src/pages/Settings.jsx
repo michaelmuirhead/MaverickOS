@@ -1,9 +1,11 @@
 import { useState, useCallback } from "react";
 import { Card, CardHeader, Overlay } from "../components/ui.jsx";
+import { NAV_ITEMS } from "../components/layout.jsx";
 import { fmt, INPUT_STYLE, pillStyle } from "../engine.js";
 import { COLOR_THEMES, DEFAULT_SETTINGS } from "../themes.js";
 import { DASHBOARD_WIDGETS } from "../constants.js";
 import { supabase } from "../supabase.jsx";
+import { FieldLabel } from "../components/forms.jsx"
 
 export function SettingsPage({ settings, setSettings, onExport, onExportCsv, onImport, onImportCsv, onReset, onRestartWizard, user, onSignOut }) {
   const fileRef = useRef(null);

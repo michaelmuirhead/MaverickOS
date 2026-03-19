@@ -1,6 +1,16 @@
 import { useState, useMemo } from "react";
 import { Card, CardHeader, MetricBox, ProgressBar, Overlay, SwipeToDelete } from "../components/ui.jsx";
 import { fmt, fmtCompact, pct, nextId, INPUT_STYLE } from "../engine.js";
+import { FieldLabel } from "../components/forms.jsx"
+
+const ASSET_CATEGORIES = {
+  cash: { label: "Cash & Bank", color: "var(--green)", icon: "🏦" },
+  retirement: { label: "Retirement", color: "var(--accent)", icon: "📊" },
+  investment: { label: "Investments", color: "#38bdf8", icon: "💹" },
+  property: { label: "Property", color: "var(--amber)", icon: "🏠" },
+  crypto: { label: "Crypto", color: "#d4a843", icon: "₿" },
+  other: { label: "Other", color: "var(--text-muted)", icon: "📦" },
+};
 
 export function NetWorthPage({ assets, setAssets, debts, setDebts, showUndo, networthHistory = [], setNetworthHistory }) {
   const [modal, setModal] = useState(null);

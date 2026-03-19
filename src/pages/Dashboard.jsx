@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { Card, CardHeader, MetricBox, ProgressBar, SwipeToDelete, FrequencyBadge } from "../components/ui.jsx";
 import { fmt, fmtCompact, pct, generateUpcomingBills, generateBillInstances } from "../engine.js";
 import { DASHBOARD_WIDGETS } from "../constants.js";
+import { DEFAULT_SETTINGS } from "../themes.js"
 
 export function DashboardPage({ categories, transactions, income, billTemplates, paidDates, savingsGoals, debts, assets, settings, recurringTransactions, setTransactions }) {
   const startDay = settings?.startDayOfMonth || 1;

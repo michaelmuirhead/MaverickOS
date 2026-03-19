@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
-import { Card, CardHeader, SwipeToDelete, FrequencyBadge, Overlay } from "../components/ui.jsx";
+import { Card, CardHeader, SwipeToDelete, FrequencyBadge, Overlay, DragHandle, MetricBox } from "../components/ui.jsx";
 import { fmt, nextId, fmtCompact, INPUT_STYLE, FREQUENCY_LABELS, generateUpcomingBills } from "../engine.js";
+import { AddBillForm } from "./Calendar.jsx"
 
 export function RecurringBillsPage({ billTemplates, setBillTemplates, paidDates, onNavigate, showUndo, transactions }) {
   const [editingBill, setEditingBill] = useState(null);
@@ -274,7 +275,41 @@ export function RecurringBillsPage({ billTemplates, setBillTemplates, paidDates,
   );
 }
 
-function EditBillForm({ bill, onSave, onClose }) {
+
+// ─────────────────────────────────────────────
+// SAVINGS GOALS PAGE
+// ─────────────────────────────────────────────
+
+export function DraggableSimpleList({ items, onReorder, renderItem }) {
+  const { dragIndex, overIndex, startDrag, listId } = useDragToReorder(items, onReorder);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
+      <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>
+        Drag the handles to reorder. Press <strong style={{ color: "var(--text-secondary)" }}>Reorder</strong> again to exit.
+      </div>
+      {items.map((item, idx) => {
+        const isDragging = dragIndex === idx;
+        const isOver = overIndex === idx && dragIndex !== null && dragIndex !== idx;
+        return (
+          <div key={item.id} data-drag-list={listId} data-drag-item={idx} style={{
+            opacity: isDragging ? 0.35 : 1,
+            borderRadius: 12, border: `2px solid ${isOver ? "var(--accent)" : "var(--border)"}`,
+            background: "var(--card)", transition: "border-color 0.15s, opacity 0.15s",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "12px 16px" }}>
+              <DragHandle onPointerDown={(e) => startDrag(e, idx)} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {renderItem(item)}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function EditBillForm({ bill, onSave, onClose }) {
   const [form, setForm] = useState({
     name: bill.name, amount: String(bill.amount), anchorDate: bill.anchorDate,
     recurring: bill.recurring, frequency: bill.frequency || "monthly",
@@ -368,37 +403,3 @@ function EditBillForm({ bill, onSave, onClose }) {
     </>
   );
 }
-
-// ─────────────────────────────────────────────
-// SAVINGS GOALS PAGE
-// ─────────────────────────────────────────────
-
-function DraggableSimpleList({ items, onReorder, renderItem }) {
-  const { dragIndex, overIndex, startDrag, listId } = useDragToReorder(items, onReorder);
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
-      <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>
-        Drag the handles to reorder. Press <strong style={{ color: "var(--text-secondary)" }}>Reorder</strong> again to exit.
-      </div>
-      {items.map((item, idx) => {
-        const isDragging = dragIndex === idx;
-        const isOver = overIndex === idx && dragIndex !== null && dragIndex !== idx;
-        return (
-          <div key={item.id} data-drag-list={listId} data-drag-item={idx} style={{
-            opacity: isDragging ? 0.35 : 1,
-            borderRadius: 12, border: `2px solid ${isOver ? "var(--accent)" : "var(--border)"}`,
-            background: "var(--card)", transition: "border-color 0.15s, opacity 0.15s",
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "12px 16px" }}>
-              <DragHandle onPointerDown={(e) => startDrag(e, idx)} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                {renderItem(item)}
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-

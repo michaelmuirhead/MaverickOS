@@ -1,6 +1,8 @@
+import { DraggableSimpleList } from "./RecurringBills.jsx";
 import { useState } from "react";
-import { Card, CardHeader, ProgressBar, SwipeToDelete, Overlay, DragHandle, useDragToReorder } from "../components/ui.jsx";
+import { Card, CardHeader, ProgressBar, SwipeToDelete, Overlay, DragHandle, useDragToReorder, MetricBox } from "../components/ui.jsx";
 import { fmt, fmtCompact, pct, nextId, INPUT_STYLE } from "../engine.js";
+import { FieldLabel } from "../components/forms.jsx"
 
 export function SavingsPage({ savingsGoals, setSavingsGoals, showUndo, categories, setCategories, setTransactions, budgetTargets, setBudgetTargets }) {
   const [modal, setModal] = useState(null);

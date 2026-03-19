@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Card, CardHeader } from "../components/ui.jsx";
-import { fmt } from "../engine.js";
+import { fmt, INPUT_STYLE } from "../engine.js";
 
 export function CalcInput({ label, value, onChange, prefix, suffix, step = "1", min = "0" }) {
   return (
