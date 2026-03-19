@@ -27,6 +27,8 @@ import { SettingsPage } from "./pages/Settings.jsx";
 import { RecurringTransactionsPage } from "./pages/AutoSpend.jsx";
 import { BudgetPage } from "./pages/Budget.jsx";
 
+const STORAGE_KEY = "maverickos_data";
+
 export default function MaverickOS() {
   const [page, setPage] = useState("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
