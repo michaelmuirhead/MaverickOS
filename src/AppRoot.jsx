@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
-import { supabase, loadState, saveState, clearState, saveStateToSupabase, loadStateFromSupabase, AuthScreen } from "./supabase.js";
+import { supabase, loadState, saveState, clearState, saveStateToSupabase, loadStateFromSupabase, AuthScreen } from "./supabase.jsx";
 import { DEFAULT_SETTINGS, COLOR_THEMES } from "./themes.js";
 import { INITIAL_CATEGORIES, INITIAL_TRANSACTIONS, INITIAL_INCOME, INITIAL_PAYCHECK_STREAMS, INITIAL_CUSTOM_ITEMS, INITIAL_BUDGET_ROLLOVERS, INITIAL_BUDGET_TARGETS, INITIAL_RECURRING_TRANSACTIONS, INITIAL_BILL_TEMPLATES, INITIAL_NETWORTH_HISTORY, INITIAL_PAID_DATES, INITIAL_SAVINGS_GOALS, INITIAL_DEBTS, INITIAL_ASSETS } from "./constants.js";
 import { generateBillInstances, generateUpcomingBills, fmt, nextId, seedNextId, setCurrency } from "./engine.js";
