@@ -1,3 +1,26 @@
+export const pillStyle = (active) => ({
+  padding: "6px 14px", borderRadius: 999, fontSize: 12, fontWeight: 600,
+  cursor: "pointer", border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
+  background: active ? "var(--accent)" + "18" : "transparent",
+  color: active ? "var(--accent)" : "var(--text-muted)",
+  transition: "all 0.15s",
+});
+
+export const FREQUENCY_LABELS = {
+  weekly: "Weekly",
+  biweekly: "Biweekly",
+  semimonthly: "1st & 15th",
+  monthly: "Monthly",
+  quarterly: "Quarterly",
+  yearly: "Yearly",
+};
+
+export const INPUT_STYLE = {
+  width: "100%", padding: "10px 12px", borderRadius: 8,
+  border: "1px solid var(--border)", background: "var(--surface)",
+  color: "var(--text-primary)", fontSize: 14, outline: "none", boxSizing: "border-box",
+};
+
 export function generateBillInstances(templates, year, month) {
   const instances = [];
   const monthStart = new Date(year, month, 1);

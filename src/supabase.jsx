@@ -34,7 +34,7 @@ export function clearState() {
 }
 
 // Save full state to Supabase (upsert — insert or update)
-async function saveStateToSupabase(userId, state) {
+export async function saveStateToSupabase(userId, state) {
   try {
     const toSave = { ...state, paidDates: [...state.paidDates] };
     const { error } = await supabase
@@ -45,7 +45,7 @@ async function saveStateToSupabase(userId, state) {
 }
 
 // Load full state from Supabase
-async function loadStateFromSupabase(userId) {
+export async function loadStateFromSupabase(userId) {
   try {
     const { data, error } = await supabase
       .from("user_data")
