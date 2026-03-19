@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Card } from "./ui.jsx";
-import { fmt } from "../engine.js";
+import { fmt, INPUT_STYLE } from "../engine.js";
 import { COLOR_THEMES } from "../themes.js";
 
 export function useIsMobile(breakpoint = 768) {

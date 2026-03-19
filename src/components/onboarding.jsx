@@ -1,8 +1,17 @@
+const ONBOARDING_STEPS = [
+  { id: "welcome", title: "Welcome to MaverickOS", icon: "💰" },
+  { id: "income", title: "Your Income", icon: "💼" },
+  { id: "bills", title: "Monthly Bills", icon: "📋" },
+  { id: "categories", title: "Budget Categories", icon: "📊" },
+  { id: "finances", title: "Debts & Savings", icon: "🏦" },
+  { id: "theme", title: "Make It Yours", icon: "🎨" },
+];
+
 import { useState } from "react";
 import { Card, Overlay, ProgressBar, SwipeToDelete } from "./ui.jsx";
 import { FieldLabel } from "./forms.jsx";
 import { COLOR_THEMES, DEFAULT_SETTINGS } from "../themes.js";
-import { INITIAL_CATEGORIES, INITIAL_BILL_TEMPLATES, INITIAL_NETWORTH_HISTORY } from "../constants.js";
+import { INITIAL_CATEGORIES, INITIAL_BILL_TEMPLATES, INITIAL_NETWORTH_HISTORY, INITIAL_ASSETS, INITIAL_BUDGET_TARGETS, INITIAL_DEBTS, INITIAL_INCOME, INITIAL_SAVINGS_GOALS } from "../constants.js";
 import { nextId, INPUT_STYLE, FREQUENCY_LABELS } from "../engine.js";
 
 export function OnboardingWizard({ onComplete }) {
